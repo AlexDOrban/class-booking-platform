@@ -18,16 +18,12 @@ const initialClasses: ClassItem[] = [
     category: 'Wellness',
     description: 'A gentle morning flow to start your day with clarity and energy.',
     address: 'Rue de la Loi 42, Brussels',
-    lat: 50.8467,
-    lng: 4.3572,
-    date: '2026-03-10',
-    time: '08:00',
-    duration: 60,
-    capacity: 15,
-    enrolled: 8,
-    basePrice: 22,
-    discounts: { student: 20, retired: 30 },
+    lat: 50.8467, lng: 4.3572,
+    date: '2026-03-10', time: '08:00', duration: 60,
+    capacity: 15, enrolled: 8,
+    basePrice: 22, discounts: { student: 20, retired: 30 },
     color: '#a8d8b9',
+    roles: [], minPairs: 0, roleEnrollments: {}, waitingList: [], pairs: [],
   },
   {
     id: 2,
@@ -36,16 +32,12 @@ const initialClasses: ClassItem[] = [
     category: 'Art',
     description: 'Master composition, lighting and post-processing techniques.',
     address: 'Avenue Louise 149, Brussels',
-    lat: 50.8355,
-    lng: 4.3622,
-    date: '2026-03-12',
-    time: '14:00',
-    duration: 120,
-    capacity: 10,
-    enrolled: 7,
-    basePrice: 45,
-    discounts: { student: 15, retired: 25 },
+    lat: 50.8355, lng: 4.3622,
+    date: '2026-03-12', time: '14:00', duration: 120,
+    capacity: 10, enrolled: 7,
+    basePrice: 45, discounts: { student: 15, retired: 25 },
     color: '#f4c9a5',
+    roles: [], minPairs: 0, roleEnrollments: {}, waitingList: [], pairs: [],
   },
   {
     id: 3,
@@ -54,16 +46,38 @@ const initialClasses: ClassItem[] = [
     category: 'Cooking',
     description: 'Learn authentic French techniques from a professional chef.',
     address: 'Place Sainte-Catherine 5, Brussels',
-    lat: 50.852,
-    lng: 4.348,
-    date: '2026-03-15',
-    time: '11:00',
-    duration: 180,
-    capacity: 8,
-    enrolled: 8,
-    basePrice: 65,
-    discounts: { student: 10, retired: 20 },
+    lat: 50.852, lng: 4.348,
+    date: '2026-03-15', time: '11:00', duration: 180,
+    capacity: 8, enrolled: 8,
+    basePrice: 65, discounts: { student: 10, retired: 20 },
     color: '#c5b8f0',
+    roles: [], minPairs: 0, roleEnrollments: {}, waitingList: [], pairs: [],
+  },
+  {
+    id: 4,
+    title: 'Salsa Social',
+    teacher: 'Sofia Martens',
+    category: 'Sport',
+    description: 'Weekly partner dance social — all levels welcome.',
+    address: 'Rue du Bailli 38, Brussels',
+    lat: 50.8395, lng: 4.3521,
+    date: '2026-03-15', time: '19:00', duration: 90,
+    capacity: 20, enrolled: 9,
+    basePrice: 22, discounts: { student: 15, retired: 20 },
+    color: '#f9c5d1',
+    roles: [
+      { name: 'Lead', capacity: 10 },
+      { name: 'Follow', capacity: 10 },
+    ],
+    minPairs: 4,
+    roleEnrollments: { Lead: 4, Follow: 5 },
+    waitingList: [{ studentName: 'Carlos M.', role: 'Lead', timestamp: 1741996800000 }],
+    pairs: [
+      { name1: 'Maria', role1: 'Lead', name2: 'João', role2: 'Follow', isPreformed: true },
+      { name1: 'Alex', role1: 'Lead', name2: 'Priya', role2: 'Follow', isPreformed: false },
+      { name1: 'Sam', role1: 'Lead', name2: 'Lee', role2: 'Follow', isPreformed: false },
+      { name1: 'Tom', role1: 'Lead', name2: 'Ana', role2: 'Follow', isPreformed: false },
+    ],
   },
 ];
 
@@ -71,6 +85,20 @@ const categories = ['All', 'Wellness', 'Art', 'Cooking', 'Music', 'Language', 'T
 const colorOptions = ['#a8d8b9', '#f4c9a5', '#c5b8f0', '#f9c5d1', '#b8d8f4', '#f4e6a5', '#f0b8b8'];
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
+
+interface Role {
+  name: string;
+  capacity: number;
+}
+
+interface Booking {
+  pricePaid: string;
+  bookingType: 'solo' | 'pair';
+  role: string;
+  partnerName?: string;
+  partnerRole?: string;
+  pairedWithBookingId?: number;
+}
 
 interface ClassItem {
   id: number;
@@ -84,11 +112,16 @@ interface ClassItem {
   date: string;
   time: string;
   duration: number;
-  capacity: number;
+  capacity: number;      // used only when roles.length === 0
   enrolled: number;
   basePrice: number;
   discounts: { student: number; retired: number };
   color: string;
+  roles: Role[];
+  minPairs: number;
+  roleEnrollments: Record<string, number>;
+  waitingList: { studentName: string; role: string; timestamp: number }[];
+  pairs: { name1: string; role1: string; name2: string; role2: string; isPreformed: boolean }[];
 }
 
 interface NewClassForm {
@@ -102,10 +135,12 @@ interface NewClassForm {
   date: string;
   time: string;
   duration: string;
-  capacity: string;
+  capacity: string;      // used only when roles.length === 0
   basePrice: string;
   discounts: { student: string; retired: string };
   color: string;
+  roles: { name: string; capacity: string }[];
+  minPairs: string;
 }
 
 // ─── THEME ───────────────────────────────────────────────────────────────────
@@ -182,6 +217,7 @@ const BLANK_NEW_CLASS: NewClassForm = {
   address: '', lat: '', lng: '', date: '', time: '', duration: '60',
   capacity: '10', basePrice: '30',
   discounts: { student: '20', retired: '30' }, color: '#a8d8b9',
+  roles: [], minPairs: '0',
 };
 
 export default function ClassBookingApp() {
@@ -195,7 +231,7 @@ export default function ClassBookingApp() {
   const [profileType, setProfileType] = useState<'standard' | 'student' | 'retired'>('standard');
   const [successMsg, setSuccessMsg] = useState('');
   const [newClass, setNewClass] = useState<NewClassForm>(BLANK_NEW_CLASS);
-  const [bookedIds, setBookedIds] = useState<Map<number, { pricePaid: string }>>(new Map());
+  const [bookedIds, setBookedIds] = useState<Map<number, Booking>>(new Map());
   const [expandedBookingId, setExpandedBookingId] = useState<number | null>(null);
   const [studentTab, setStudentTab] = useState<'browse' | 'bookings'>('browse');
 
@@ -304,6 +340,11 @@ export default function ClassBookingApp() {
         retired: Number(newClass.discounts.retired),
       },
       color: newClass.color,
+      roles: newClass.roles.map(r => ({ name: r.name, capacity: Number(r.capacity) })),
+      minPairs: Number(newClass.minPairs),
+      roleEnrollments: {},
+      waitingList: [],
+      pairs: [],
     };
     setClasses(prev => [...prev, cls]);
     setCreateModal(false);
