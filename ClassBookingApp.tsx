@@ -234,6 +234,8 @@ export default function ClassBookingApp() {
   const [bookedIds, setBookedIds] = useState<Map<number, Booking>>(new Map());
   const [expandedBookingId, setExpandedBookingId] = useState<number | null>(null);
   const [studentTab, setStudentTab] = useState<'browse' | 'bookings'>('browse');
+  const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
+  const [createHasRoles, setCreateHasRoles] = useState(false);
 
   const theme = useTheme(dark);
   const { width, height: screenHeight } = useWindowDimensions();
@@ -460,6 +462,8 @@ export default function ClassBookingApp() {
     };
     setClasses(prev => [...prev, cls]);
     setCreateModal(false);
+    setCreateStep(1);
+    setCreateHasRoles(false);
     setNewClass(BLANK_NEW_CLASS);
     showSuccess(`Class "${cls.title}" created successfully!`);
   };
@@ -476,8 +480,6 @@ export default function ClassBookingApp() {
   const categoryOptions = categories
     .filter(c => c !== 'All')
     .map(c => ({ label: c, value: c }));
-
-  const canCreate = !!(newClass.title && newClass.teacher && newClass.address && newClass.date);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -1506,14 +1508,17 @@ export default function ClassBookingApp() {
         visible={createModal}
         animationType="slide"
         transparent
-        onRequestClose={() => setCreateModal(false)}
+        onRequestClose={() => { setCreateModal(false); setCreateStep(1); setCreateHasRoles(false); }}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCreateModal(false)} />
+            <Pressable
+              style={StyleSheet.absoluteFillObject}
+              onPress={() => { setCreateModal(false); setCreateStep(1); setCreateHasRoles(false); }}
+            />
             <View style={{
               backgroundColor: theme.surface,
               borderTopLeftRadius: 24, borderTopRightRadius: 24,
@@ -1524,282 +1529,492 @@ export default function ClassBookingApp() {
               shadowOffset: { width: 0, height: -8 },
               shadowOpacity: 0.3, shadowRadius: 24, elevation: 20,
             }}>
-              {/* Modal header */}
+              {/* Wizard header */}
               <View style={{
-                flexDirection: 'row', justifyContent: 'space-between',
-                alignItems: 'center',
                 paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16,
                 borderBottomWidth: 1, borderBottomColor: theme.border,
               }}>
-                <Text style={{
-                  fontFamily: 'CormorantGaramond_600SemiBold',
-                  fontSize: 24, color: theme.text,
-                }}>
-                  Create a New Class
-                </Text>
-                <Pressable
-                  onPress={() => setCreateModal(false)}
-                  style={({ pressed }) => ({
-                    backgroundColor: pressed ? theme.border : theme.surfaceAlt,
-                    width: 32, height: 32, borderRadius: 8,
-                    alignItems: 'center', justifyContent: 'center',
-                  })}
-                >
-                  <Text style={{ color: theme.muted, fontSize: 18 }}>×</Text>
-                </Pressable>
+                {/* Step progress bar */}
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+                  {([1, 2, 3] as const).map(s => (
+                    <View
+                      key={s}
+                      style={{
+                        flex: 1, height: 3, borderRadius: 2,
+                        backgroundColor: s <= createStep ? theme.accent : theme.border,
+                      }}
+                    />
+                  ))}
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View>
+                    <Text style={{
+                      fontFamily: 'CormorantGaramond_600SemiBold',
+                      fontSize: 22, color: theme.text,
+                    }}>
+                      {createStep === 1 ? 'Basic Details' : createStep === 2 ? 'Roles & Capacity' : 'Price & Description'}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: theme.muted, fontFamily: 'DMSans_400Regular', marginTop: 1 }}>
+                      Step {createStep} of 3
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => { setCreateModal(false); setCreateStep(1); setCreateHasRoles(false); setNewClass(BLANK_NEW_CLASS); }}
+                    style={({ pressed }) => ({
+                      backgroundColor: pressed ? theme.border : theme.surfaceAlt,
+                      width: 32, height: 32, borderRadius: 8,
+                      alignItems: 'center', justifyContent: 'center',
+                    })}
+                  >
+                    <Text style={{ color: theme.muted, fontSize: 18 }}>×</Text>
+                  </Pressable>
+                </View>
               </View>
 
               <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }}>
-                {/* Title */}
-                <FieldGroup label="Class Title" theme={theme}>
-                  <RNInput
-                    value={newClass.title}
-                    onChange={v => setNewClass(p => ({ ...p, title: v }))}
-                    placeholder="e.g. Morning Yoga Flow"
-                    theme={theme}
-                  />
-                </FieldGroup>
 
-                {/* Teacher + Category */}
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <FieldGroup label="Teacher Name" theme={theme}>
+                {/* ── STEP 1: Basic Details ── */}
+                {createStep === 1 && (
+                  <>
+                    <FieldGroup label="Class Title" theme={theme}>
                       <RNInput
-                        value={newClass.teacher}
-                        onChange={v => setNewClass(p => ({ ...p, teacher: v }))}
-                        placeholder="Your name"
+                        value={newClass.title}
+                        onChange={v => setNewClass(p => ({ ...p, title: v }))}
+                        placeholder="e.g. Salsa Social"
                         theme={theme}
                       />
                     </FieldGroup>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <FieldGroup label="Category" theme={theme}>
-                      <CustomDropdown
-                        value={newClass.category}
-                        options={categoryOptions}
-                        onChange={v => setNewClass(p => ({ ...p, category: v }))}
-                        border={theme.border}
-                        surfaceAlt={theme.surfaceAlt}
-                        surface={theme.surface}
-                        text={theme.text}
-                        muted={theme.muted}
-                      />
-                    </FieldGroup>
-                  </View>
-                </View>
 
-                {/* Description */}
-                <FieldGroup label="Description" theme={theme}>
-                  <RNInput
-                    value={newClass.description}
-                    onChange={v => setNewClass(p => ({ ...p, description: v }))}
-                    placeholder="What will students learn?"
-                    theme={theme}
-                    multiline
-                  />
-                </FieldGroup>
-
-                {/* Location section */}
-                <View style={{ backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 16, gap: 10 }}>
-                  <Text style={{
-                    fontSize: 12, fontWeight: '700', color: theme.accentLight,
-                    textTransform: 'uppercase', letterSpacing: 0.8,
-                    fontFamily: 'DMSans_700Bold',
-                  }}>
-                    📍 Location
-                  </Text>
-                  <FieldGroup label="Street Address" theme={theme}>
-                    <RNInput
-                      value={newClass.address}
-                      onChange={v => setNewClass(p => ({ ...p, address: v }))}
-                      placeholder="e.g. Rue de la Loi 42, Brussels"
-                      theme={theme}
-                      bgOverride={theme.border + '50'}
-                    />
-                  </FieldGroup>
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <View style={{ flex: 1 }}>
-                      <FieldGroup label="Latitude (optional)" theme={theme}>
-                        <RNInput
-                          value={newClass.lat}
-                          onChange={v => setNewClass(p => ({ ...p, lat: v }))}
-                          placeholder="50.8503"
-                          theme={theme}
-                          keyboardType="numeric"
-                          bgOverride={theme.border + '50'}
-                        />
-                      </FieldGroup>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <FieldGroup label="Teacher Name" theme={theme}>
+                          <RNInput
+                            value={newClass.teacher}
+                            onChange={v => setNewClass(p => ({ ...p, teacher: v }))}
+                            placeholder="Your name"
+                            theme={theme}
+                          />
+                        </FieldGroup>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <FieldGroup label="Category" theme={theme}>
+                          <CustomDropdown
+                            value={newClass.category}
+                            options={categoryOptions}
+                            onChange={v => setNewClass(p => ({ ...p, category: v }))}
+                            border={theme.border}
+                            surfaceAlt={theme.surfaceAlt}
+                            surface={theme.surface}
+                            text={theme.text}
+                            muted={theme.muted}
+                          />
+                        </FieldGroup>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <FieldGroup label="Longitude (optional)" theme={theme}>
-                        <RNInput
-                          value={newClass.lng}
-                          onChange={v => setNewClass(p => ({ ...p, lng: v }))}
-                          placeholder="4.3517"
-                          theme={theme}
-                          keyboardType="numeric"
-                          bgOverride={theme.border + '50'}
-                        />
-                      </FieldGroup>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 11, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
-                    💡 GPS coordinates will be auto-resolved from the address when published.
-                  </Text>
-                </View>
 
-                {/* Date / Time / Duration */}
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <View style={{ flex: 1 }}>
-                    <FieldGroup label="Date" theme={theme}>
-                      <RNInput
-                        value={newClass.date}
-                        onChange={v => setNewClass(p => ({ ...p, date: v }))}
-                        placeholder="YYYY-MM-DD"
-                        theme={theme}
-                      />
-                    </FieldGroup>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <FieldGroup label="Time" theme={theme}>
-                      <RNInput
-                        value={newClass.time}
-                        onChange={v => setNewClass(p => ({ ...p, time: v }))}
-                        placeholder="HH:MM"
-                        theme={theme}
-                      />
-                    </FieldGroup>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <FieldGroup label="Duration (min)" theme={theme}>
-                      <RNInput
-                        value={newClass.duration}
-                        onChange={v => setNewClass(p => ({ ...p, duration: v }))}
-                        placeholder="60"
-                        theme={theme}
-                        keyboardType="numeric"
-                      />
-                    </FieldGroup>
-                  </View>
-                </View>
-
-                {/* Capacity + Price */}
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <View style={{ flex: 1 }}>
-                    <FieldGroup label="Max Capacity" theme={theme}>
-                      <RNInput
-                        value={newClass.capacity}
-                        onChange={v => setNewClass(p => ({ ...p, capacity: v }))}
-                        placeholder="10"
-                        theme={theme}
-                        keyboardType="numeric"
-                      />
-                    </FieldGroup>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <FieldGroup label="Base Price (€)" theme={theme}>
-                      <RNInput
-                        value={newClass.basePrice}
-                        onChange={v => setNewClass(p => ({ ...p, basePrice: v }))}
-                        placeholder="30"
-                        theme={theme}
-                        keyboardType="numeric"
-                      />
-                    </FieldGroup>
-                  </View>
-                </View>
-
-                {/* Discounts */}
-                <View style={{ backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 16, gap: 10 }}>
-                  <Text style={{
-                    fontSize: 12, fontWeight: '700', color: theme.green,
-                    textTransform: 'uppercase', letterSpacing: 0.8,
-                    fontFamily: 'DMSans_700Bold',
-                  }}>
-                    🏷️ Discounts
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <View style={{ flex: 1 }}>
-                      <FieldGroup label="Student discount (%)" theme={theme}>
-                        <RNInput
-                          value={newClass.discounts.student}
-                          onChange={v => setNewClass(p => ({ ...p, discounts: { ...p.discounts, student: v } }))}
-                          placeholder="20"
-                          theme={theme}
-                          keyboardType="numeric"
-                          bgOverride={theme.border + '50'}
-                        />
-                      </FieldGroup>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <FieldGroup label="Date" theme={theme}>
+                          <RNInput
+                            value={newClass.date}
+                            onChange={v => setNewClass(p => ({ ...p, date: v }))}
+                            placeholder="YYYY-MM-DD"
+                            theme={theme}
+                          />
+                        </FieldGroup>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <FieldGroup label="Time" theme={theme}>
+                          <RNInput
+                            value={newClass.time}
+                            onChange={v => setNewClass(p => ({ ...p, time: v }))}
+                            placeholder="HH:MM"
+                            theme={theme}
+                          />
+                        </FieldGroup>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <FieldGroup label="Duration (min)" theme={theme}>
+                          <RNInput
+                            value={newClass.duration}
+                            onChange={v => setNewClass(p => ({ ...p, duration: v }))}
+                            placeholder="60"
+                            theme={theme}
+                            keyboardType="numeric"
+                          />
+                        </FieldGroup>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <FieldGroup label="Senior / Retired (%)" theme={theme}>
-                        <RNInput
-                          value={newClass.discounts.retired}
-                          onChange={v => setNewClass(p => ({ ...p, discounts: { ...p.discounts, retired: v } }))}
-                          placeholder="30"
-                          theme={theme}
-                          keyboardType="numeric"
-                          bgOverride={theme.border + '50'}
-                        />
-                      </FieldGroup>
-                    </View>
-                  </View>
-                  {newClass.basePrice ? (
-                    <View style={{ flexDirection: 'row', gap: 16 }}>
-                      <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
-                        {'🎓 Students pay: '}
-                        <Text style={{ color: theme.green, fontFamily: 'DMSans_700Bold' }}>
-                          €{(Number(newClass.basePrice) * (1 - Number(newClass.discounts.student) / 100)).toFixed(2)}
-                        </Text>
+
+                    <View style={{ backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 16, gap: 10 }}>
+                      <Text style={{
+                        fontSize: 12, fontWeight: '700', color: theme.accentLight,
+                        textTransform: 'uppercase', letterSpacing: 0.8,
+                        fontFamily: 'DMSans_700Bold',
+                      }}>
+                        📍 Location
                       </Text>
-                      <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
-                        {'👴 Seniors pay: '}
-                        <Text style={{ color: theme.green, fontFamily: 'DMSans_700Bold' }}>
-                          €{(Number(newClass.basePrice) * (1 - Number(newClass.discounts.retired) / 100)).toFixed(2)}
-                        </Text>
-                      </Text>
+                      <FieldGroup label="Street Address" theme={theme}>
+                        <RNInput
+                          value={newClass.address}
+                          onChange={v => setNewClass(p => ({ ...p, address: v }))}
+                          placeholder="e.g. Rue de la Loi 42, Brussels"
+                          theme={theme}
+                          bgOverride={theme.border + '50'}
+                        />
+                      </FieldGroup>
+                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <View style={{ flex: 1 }}>
+                          <FieldGroup label="Latitude (optional)" theme={theme}>
+                            <RNInput
+                              value={newClass.lat}
+                              onChange={v => setNewClass(p => ({ ...p, lat: v }))}
+                              placeholder="50.8503"
+                              theme={theme}
+                              keyboardType="numeric"
+                              bgOverride={theme.border + '50'}
+                            />
+                          </FieldGroup>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <FieldGroup label="Longitude (optional)" theme={theme}>
+                            <RNInput
+                              value={newClass.lng}
+                              onChange={v => setNewClass(p => ({ ...p, lng: v }))}
+                              placeholder="4.3517"
+                              theme={theme}
+                              keyboardType="numeric"
+                              bgOverride={theme.border + '50'}
+                            />
+                          </FieldGroup>
+                        </View>
+                      </View>
                     </View>
-                  ) : null}
-                </View>
 
-                {/* Colour picker */}
-                <FieldGroup label="Class Colour" theme={theme}>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    {colorOptions.map(c => (
-                      <Pressable
-                        key={c}
-                        onPress={() => setNewClass(p => ({ ...p, color: c }))}
-                        style={{
-                          width: 28, height: 28, borderRadius: 14,
-                          backgroundColor: c,
-                          borderWidth: newClass.color === c ? 3 : 0,
-                          borderColor: theme.accent,
-                        }}
-                      />
-                    ))}
-                  </View>
-                </FieldGroup>
+                    {/* Next button */}
+                    <Pressable
+                      onPress={() => setCreateStep(2)}
+                      disabled={!(newClass.title && newClass.teacher && newClass.address && newClass.date)}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                    >
+                      <LinearGradient
+                        colors={
+                          (newClass.title && newClass.teacher && newClass.address && newClass.date)
+                            ? [theme.accent, '#e06b9a']
+                            : [theme.border, theme.border]
+                        }
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+                      >
+                        <Text style={{
+                          color: (newClass.title && newClass.teacher && newClass.address && newClass.date) ? '#fff' : theme.muted,
+                          fontWeight: '700', fontSize: 15, fontFamily: 'DMSans_700Bold',
+                        }}>
+                          Next →
+                        </Text>
+                      </LinearGradient>
+                    </Pressable>
+                  </>
+                )}
 
-                {/* Create button */}
-                <Pressable
-                  onPress={handleCreateClass}
-                  disabled={!canCreate}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-                >
-                  <LinearGradient
-                    colors={canCreate ? [theme.accent, '#e06b9a'] : [theme.border, theme.border]}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                    style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
-                  >
+                {/* ── STEP 2: Roles & Capacity ── */}
+                {createStep === 2 && (
+                  <>
                     <Text style={{
-                      color: canCreate ? '#fff' : theme.muted,
-                      fontWeight: '700', fontSize: 15,
-                      fontFamily: 'DMSans_700Bold',
+                      fontFamily: 'DMSans_600SemiBold',
+                      fontSize: 14, color: theme.text, marginBottom: 4,
                     }}>
-                      Create Class
+                      Does this class use roles?
                     </Text>
-                  </LinearGradient>
-                </Pressable>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      {[true, false].map(hasRoles => (
+                        <Pressable
+                          key={String(hasRoles)}
+                          onPress={() => {
+                            setCreateHasRoles(hasRoles);
+                            if (!hasRoles) setNewClass(p => ({ ...p, roles: [], minPairs: '0' }));
+                          }}
+                          style={{
+                            flex: 1,
+                            borderWidth: createHasRoles === hasRoles ? 1.5 : 1,
+                            borderColor: createHasRoles === hasRoles ? theme.accent : theme.border,
+                            borderRadius: 10, padding: 12,
+                            backgroundColor: createHasRoles === hasRoles ? theme.accent + '18' : 'transparent',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Text style={{
+                            fontFamily: 'DMSans_600SemiBold',
+                            fontSize: 13,
+                            color: createHasRoles === hasRoles ? theme.accentLight : theme.text,
+                          }}>
+                            {hasRoles ? 'Yes, add roles' : 'No roles'}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    {createHasRoles ? (
+                      <>
+                        {/* Role rows */}
+                        <View style={{ gap: 8 }}>
+                          {newClass.roles.map((role, idx) => (
+                            <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                              <View style={{ flex: 2 }}>
+                                <RNInput
+                                  value={role.name}
+                                  onChange={v => setNewClass(p => ({
+                                    ...p,
+                                    roles: p.roles.map((r, i) => i === idx ? { ...r, name: v } : r),
+                                  }))}
+                                  placeholder="Role name (e.g. Lead)"
+                                  theme={theme}
+                                />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <RNInput
+                                  value={role.capacity}
+                                  onChange={v => setNewClass(p => ({
+                                    ...p,
+                                    roles: p.roles.map((r, i) => i === idx ? { ...r, capacity: v } : r),
+                                  }))}
+                                  placeholder="Cap"
+                                  theme={theme}
+                                  keyboardType="numeric"
+                                />
+                              </View>
+                              <Pressable
+                                onPress={() => setNewClass(p => ({
+                                  ...p,
+                                  roles: p.roles.filter((_, i) => i !== idx),
+                                }))}
+                                style={{ paddingHorizontal: 8, paddingVertical: 10 }}
+                              >
+                                <Text style={{ color: '#e05050', fontSize: 18 }}>×</Text>
+                              </Pressable>
+                            </View>
+                          ))}
+                        </View>
+
+                        {/* Add role button */}
+                        <Pressable
+                          onPress={() => setNewClass(p => ({
+                            ...p,
+                            roles: [...p.roles, { name: '', capacity: '10' }],
+                          }))}
+                          style={{
+                            borderWidth: 1, borderStyle: 'dashed',
+                            borderColor: theme.accent, borderRadius: 8,
+                            paddingVertical: 10, alignItems: 'center',
+                          }}
+                        >
+                          <Text style={{
+                            color: theme.accentLight,
+                            fontFamily: 'DMSans_600SemiBold', fontSize: 13,
+                          }}>
+                            + Add role
+                          </Text>
+                        </Pressable>
+
+                        {/* Min pairs */}
+                        <View style={{ backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 14, gap: 8 }}>
+                          <FieldGroup label="Minimum Pairs to Run" theme={theme}>
+                            <RNInput
+                              value={newClass.minPairs}
+                              onChange={v => setNewClass(p => ({ ...p, minPairs: v }))}
+                              placeholder="3"
+                              theme={theme}
+                              keyboardType="numeric"
+                            />
+                          </FieldGroup>
+                          <Text style={{ fontSize: 11, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                            Class cancels 48h before if minimum is not reached.
+                          </Text>
+                        </View>
+                      </>
+                    ) : (
+                      <FieldGroup label="Max Capacity" theme={theme}>
+                        <RNInput
+                          value={newClass.capacity}
+                          onChange={v => setNewClass(p => ({ ...p, capacity: v }))}
+                          placeholder="10"
+                          theme={theme}
+                          keyboardType="numeric"
+                        />
+                      </FieldGroup>
+                    )}
+
+                    {/* Back / Next */}
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <Pressable
+                        onPress={() => setCreateStep(1)}
+                        style={({ pressed }) => ({
+                          flex: 1, paddingVertical: 12, borderRadius: 10,
+                          borderWidth: 1, borderColor: theme.border,
+                          alignItems: 'center',
+                          backgroundColor: pressed ? theme.surfaceAlt : 'transparent',
+                        })}
+                      >
+                        <Text style={{ color: theme.text, fontFamily: 'DMSans_600SemiBold' }}>← Back</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setCreateStep(3)}
+                        disabled={createHasRoles && newClass.roles.filter(r => r.name.trim()).length < 2}
+                        style={({ pressed }) => ({ flex: 2, opacity: pressed ? 0.85 : 1 })}
+                      >
+                        <LinearGradient
+                          colors={
+                            (!createHasRoles || newClass.roles.filter(r => r.name.trim()).length >= 2)
+                              ? [theme.accent, '#e06b9a']
+                              : [theme.border, theme.border]
+                          }
+                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                          style={{ paddingVertical: 12, borderRadius: 10, alignItems: 'center' }}
+                        >
+                          <Text style={{
+                            color: (!createHasRoles || newClass.roles.filter(r => r.name.trim()).length >= 2)
+                              ? '#fff' : theme.muted,
+                            fontFamily: 'DMSans_700Bold', fontWeight: '700',
+                          }}>
+                            Next →
+                          </Text>
+                        </LinearGradient>
+                      </Pressable>
+                    </View>
+                  </>
+                )}
+
+                {/* ── STEP 3: Price & Description ── */}
+                {createStep === 3 && (
+                  <>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <FieldGroup label="Base Price (€)" theme={theme}>
+                          <RNInput
+                            value={newClass.basePrice}
+                            onChange={v => setNewClass(p => ({ ...p, basePrice: v }))}
+                            placeholder="30"
+                            theme={theme}
+                            keyboardType="numeric"
+                          />
+                        </FieldGroup>
+                      </View>
+                    </View>
+
+                    <View style={{ backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 16, gap: 10 }}>
+                      <Text style={{
+                        fontSize: 12, fontWeight: '700', color: theme.green,
+                        textTransform: 'uppercase', letterSpacing: 0.8,
+                        fontFamily: 'DMSans_700Bold',
+                      }}>
+                        🏷️ Discounts
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <View style={{ flex: 1 }}>
+                          <FieldGroup label="Student discount (%)" theme={theme}>
+                            <RNInput
+                              value={newClass.discounts.student}
+                              onChange={v => setNewClass(p => ({ ...p, discounts: { ...p.discounts, student: v } }))}
+                              placeholder="20"
+                              theme={theme}
+                              keyboardType="numeric"
+                              bgOverride={theme.border + '50'}
+                            />
+                          </FieldGroup>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <FieldGroup label="Senior / Retired (%)" theme={theme}>
+                            <RNInput
+                              value={newClass.discounts.retired}
+                              onChange={v => setNewClass(p => ({ ...p, discounts: { ...p.discounts, retired: v } }))}
+                              placeholder="30"
+                              theme={theme}
+                              keyboardType="numeric"
+                              bgOverride={theme.border + '50'}
+                            />
+                          </FieldGroup>
+                        </View>
+                      </View>
+                      {newClass.basePrice ? (
+                        <View style={{ flexDirection: 'row', gap: 16 }}>
+                          <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                            {'🎓 Students pay: '}
+                            <Text style={{ color: theme.green, fontFamily: 'DMSans_700Bold' }}>
+                              €{(Number(newClass.basePrice) * (1 - Number(newClass.discounts.student) / 100)).toFixed(2)}
+                            </Text>
+                          </Text>
+                          <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                            {'👴 Seniors pay: '}
+                            <Text style={{ color: theme.green, fontFamily: 'DMSans_700Bold' }}>
+                              €{(Number(newClass.basePrice) * (1 - Number(newClass.discounts.retired) / 100)).toFixed(2)}
+                            </Text>
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    <FieldGroup label="Description" theme={theme}>
+                      <RNInput
+                        value={newClass.description}
+                        onChange={v => setNewClass(p => ({ ...p, description: v }))}
+                        placeholder="What will students learn?"
+                        theme={theme}
+                        multiline
+                      />
+                    </FieldGroup>
+
+                    <FieldGroup label="Class Colour" theme={theme}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {colorOptions.map(c => (
+                          <Pressable
+                            key={c}
+                            onPress={() => setNewClass(p => ({ ...p, color: c }))}
+                            style={{
+                              width: 28, height: 28, borderRadius: 14,
+                              backgroundColor: c,
+                              borderWidth: newClass.color === c ? 3 : 0,
+                              borderColor: theme.accent,
+                            }}
+                          />
+                        ))}
+                      </View>
+                    </FieldGroup>
+
+                    {/* Back / Create */}
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <Pressable
+                        onPress={() => setCreateStep(2)}
+                        style={({ pressed }) => ({
+                          flex: 1, paddingVertical: 12, borderRadius: 10,
+                          borderWidth: 1, borderColor: theme.border,
+                          alignItems: 'center',
+                          backgroundColor: pressed ? theme.surfaceAlt : 'transparent',
+                        })}
+                      >
+                        <Text style={{ color: theme.text, fontFamily: 'DMSans_600SemiBold' }}>← Back</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={handleCreateClass}
+                        disabled={!newClass.basePrice}
+                        style={({ pressed }) => ({ flex: 2, opacity: pressed ? 0.85 : 1 })}
+                      >
+                        <LinearGradient
+                          colors={newClass.basePrice ? [theme.accent, '#e06b9a'] : [theme.border, theme.border]}
+                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                          style={{ paddingVertical: 12, borderRadius: 10, alignItems: 'center' }}
+                        >
+                          <Text style={{
+                            color: newClass.basePrice ? '#fff' : theme.muted,
+                            fontWeight: '700', fontSize: 15, fontFamily: 'DMSans_700Bold',
+                          }}>
+                            Create Class
+                          </Text>
+                        </LinearGradient>
+                      </Pressable>
+                    </View>
+                  </>
+                )}
+
               </ScrollView>
             </View>
           </View>
