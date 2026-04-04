@@ -701,6 +701,197 @@ export default function ClassBookingApp() {
                 </View>
               </>
             )}
+
+            {studentTab === 'bookings' && (
+              <>
+                {bookedIds.size === 0 ? (
+                  /* ── EMPTY STATE ── */
+                  <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 }}>
+                    <Text style={{ fontSize: 40, marginBottom: 16 }}>📋</Text>
+                    <Text style={{
+                      fontFamily: 'DMSans_600SemiBold',
+                      fontSize: 18, color: theme.text,
+                      textAlign: 'center', marginBottom: 8,
+                    }}>
+                      No bookings yet
+                    </Text>
+                    <Text style={{
+                      fontFamily: 'DMSans_400Regular',
+                      fontSize: 14, color: theme.muted,
+                      textAlign: 'center', marginBottom: 24,
+                    }}>
+                      Browse classes to find something you'll love.
+                    </Text>
+                    <Pressable
+                      onPress={() => setStudentTab('browse')}
+                      style={{
+                        backgroundColor: theme.accent,
+                        paddingHorizontal: 24, paddingVertical: 12,
+                        borderRadius: 10,
+                      }}
+                    >
+                      <Text style={{
+                        color: '#fff', fontFamily: 'DMSans_600SemiBold', fontSize: 14,
+                      }}>
+                        Browse Classes →
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  /* ── BOOKING LIST ── */
+                  <View style={{ gap: 8 }}>
+                    {classes
+                      .filter(cls => bookedIds.has(cls.id))
+                      .sort((a, b) => a.date.localeCompare(b.date))
+                      .map(cls => {
+                        const booking = bookedIds.get(cls.id)!;
+                        const isExpanded = expandedBookingId === cls.id;
+                        return (
+                          <View
+                            key={cls.id}
+                            style={{
+                              backgroundColor: theme.surface,
+                              borderRadius: 12,
+                              borderWidth: 1.5,
+                              borderColor: isExpanded ? theme.accent : theme.border,
+                              overflow: 'hidden',
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: dark ? 0.2 : 0.05,
+                              shadowRadius: 6, elevation: 2,
+                            }}
+                          >
+                            {/* ── COMPACT HEADER (always visible) ── */}
+                            <Pressable
+                              onPress={() => setExpandedBookingId(isExpanded ? null : cls.id)}
+                              style={{
+                                flexDirection: 'row', alignItems: 'center',
+                                padding: 12, gap: 10,
+                              }}
+                            >
+                              <View style={{
+                                width: 38, height: 38, borderRadius: 10,
+                                backgroundColor: cls.color,
+                                alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0,
+                              }}>
+                                <Text style={{ fontSize: 18 }}>
+                                  {cls.category === 'Wellness' ? '🧘' :
+                                   cls.category === 'Art' ? '🎨' :
+                                   cls.category === 'Cooking' ? '🍳' :
+                                   cls.category === 'Music' ? '🎵' :
+                                   cls.category === 'Language' ? '💬' :
+                                   cls.category === 'Tech' ? '💻' :
+                                   cls.category === 'Sport' ? '⚽' : '📚'}
+                                </Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{
+                                  fontFamily: 'DMSans_600SemiBold',
+                                  fontSize: 14, color: theme.text, marginBottom: 2,
+                                }}>
+                                  {cls.title}
+                                </Text>
+                                <Text style={{
+                                  fontFamily: 'DMSans_400Regular',
+                                  fontSize: 12, color: theme.muted,
+                                }}>
+                                  📅 {new Date(cls.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {cls.time} · {cls.duration}min
+                                </Text>
+                              </View>
+                              <View style={{ alignItems: 'flex-end' }}>
+                                <Text style={{
+                                  fontFamily: 'DMSans_700Bold',
+                                  fontSize: 14, color: theme.accentLight, marginBottom: 2,
+                                }}>
+                                  €{booking.pricePaid}
+                                </Text>
+                                <Text style={{
+                                  fontFamily: 'DMSans_400Regular',
+                                  fontSize: 11, color: theme.muted,
+                                }}>
+                                  {isExpanded ? '∨' : '›'}
+                                </Text>
+                              </View>
+                            </Pressable>
+
+                            {/* ── EXPANDED DETAIL ── */}
+                            {isExpanded && (
+                              <View style={{
+                                borderTopWidth: 1, borderTopColor: theme.border,
+                                padding: 12, backgroundColor: theme.surfaceAlt,
+                                gap: 10,
+                              }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  <View style={{
+                                    backgroundColor: '#d4f0e0',
+                                    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+                                  }}>
+                                    <Text style={{
+                                      fontFamily: 'DMSans_600SemiBold',
+                                      fontSize: 11, color: '#2d8a5e',
+                                    }}>
+                                      ✓ Booked
+                                    </Text>
+                                  </View>
+                                  <Text style={{
+                                    fontFamily: 'DMSans_400Regular',
+                                    fontSize: 12, color: theme.muted,
+                                  }}>
+                                    {cls.teacher} · {cls.category}
+                                  </Text>
+                                </View>
+                                <Text style={{
+                                  fontFamily: 'DMSans_400Regular',
+                                  fontSize: 12, color: theme.muted,
+                                }}>
+                                  📍 {cls.address}
+                                </Text>
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                  <Pressable
+                                    onPress={() => handleCancelBooking(cls.id)}
+                                    style={{
+                                      flex: 1, backgroundColor: '#fff0f3',
+                                      borderWidth: 1, borderColor: '#f4c0cc',
+                                      borderRadius: 8, paddingVertical: 10,
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text style={{
+                                      fontFamily: 'DMSans_600SemiBold',
+                                      fontSize: 13, color: '#e05050',
+                                    }}>
+                                      Cancel Booking
+                                    </Text>
+                                  </Pressable>
+                                  <Pressable
+                                    onPress={() => Linking.openURL(
+                                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cls.address)}`
+                                    )}
+                                    style={{
+                                      flex: 1, backgroundColor: theme.accentLight + '18',
+                                      borderWidth: 1, borderColor: theme.accentLight + '44',
+                                      borderRadius: 8, paddingVertical: 10,
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text style={{
+                                      fontFamily: 'DMSans_600SemiBold',
+                                      fontSize: 13, color: theme.accentLight,
+                                    }}>
+                                      Get Directions
+                                    </Text>
+                                  </Pressable>
+                                </View>
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                  </View>
+                )}
+              </>
+            )}
           </>
         )}
 
