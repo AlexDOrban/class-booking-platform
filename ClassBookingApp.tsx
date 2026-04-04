@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, Pressable, TextInput, ScrollView, Modal,
   Animated, StyleSheet, useWindowDimensions, SafeAreaView,
-  Platform, KeyboardAvoidingView,
+  Platform, KeyboardAvoidingView, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
@@ -195,6 +195,9 @@ export default function ClassBookingApp() {
   const [profileType, setProfileType] = useState<'standard' | 'student' | 'retired'>('standard');
   const [successMsg, setSuccessMsg] = useState('');
   const [newClass, setNewClass] = useState<NewClassForm>(BLANK_NEW_CLASS);
+  const [bookedIds, setBookedIds] = useState<Map<number, { pricePaid: string }>>(new Map());
+  const [expandedBookingId, setExpandedBookingId] = useState<number | null>(null);
+  const [studentTab, setStudentTab] = useState<'browse' | 'bookings'>('browse');
 
   const theme = useTheme(dark);
   const { width, height: screenHeight } = useWindowDimensions();
@@ -205,6 +208,11 @@ export default function ClassBookingApp() {
   // Success banner animation
   const bannerTranslateY = useRef(new Animated.Value(-30)).current;
   const bannerOpacity = useRef(new Animated.Value(0)).current;
+  const bannerAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    return () => { bannerAnimRef.current?.stop(); };
+  }, []);
 
   const toggleDark = () => {
     const next = !dark;
@@ -234,22 +242,44 @@ export default function ClassBookingApp() {
     setSuccessMsg(msg);
     bannerTranslateY.setValue(-30);
     bannerOpacity.setValue(0);
-    Animated.sequence([
+    bannerAnimRef.current?.stop();
+    bannerAnimRef.current = Animated.sequence([
       Animated.parallel([
         Animated.spring(bannerTranslateY, { toValue: 0, useNativeDriver: true }),
         Animated.timing(bannerOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
       ]),
       Animated.delay(3000),
       Animated.timing(bannerOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
-    ]).start(() => setSuccessMsg(''));
+    ]);
+    bannerAnimRef.current.start(() => setSuccessMsg(''));
   };
 
   const handleBook = (cls: ClassItem) => {
     if (cls.enrolled >= cls.capacity) return;
     setClasses(prev => prev.map(c => c.id === cls.id ? { ...c, enrolled: c.enrolled + 1 } : c));
+    setBookedIds(prev => new Map(prev).set(cls.id, { pricePaid: getDiscountedPrice(cls) }));
     setBookingModal(null);
     setSelected(null);
     showSuccess(`You're booked into "${cls.title}"!`);
+  };
+
+  const handleCancelBooking = (id: number) => {
+    Alert.alert(
+      'Cancel Booking',
+      'Are you sure you want to cancel this booking?',
+      [
+        { text: 'Keep It', style: 'cancel' },
+        {
+          text: 'Cancel Booking', style: 'destructive',
+          onPress: () => {
+            setClasses(prev => prev.map(c => c.id === id ? { ...c, enrolled: Math.max(0, c.enrolled - 1) } : c));
+            setBookedIds(prev => { const m = new Map(prev); m.delete(id); return m; });
+            setExpandedBookingId(null);
+            showSuccess('Booking cancelled');
+          },
+        },
+      ]
+    );
   };
 
   const handleCreateClass = () => {
@@ -693,9 +723,11 @@ export default function ClassBookingApp() {
                 },
                 {
                   label: 'Avg. Fill Rate',
-                  value: Math.round(
-                    classes.reduce((a, c) => a + c.enrolled / c.capacity, 0) / classes.length * 100
-                  ) + '%',
+                  value: classes.length === 0
+                    ? '0%'
+                    : Math.round(
+                        classes.reduce((a, c) => a + c.enrolled / c.capacity, 0) / classes.length * 100
+                      ) + '%',
                   icon: '📊',
                 },
               ].map(stat => (
