@@ -70,7 +70,7 @@ const initialClasses: ClassItem[] = [
       { name: 'Follow', capacity: 10 },
     ],
     minPairs: 4,
-    roleEnrollments: { Lead: 4, Follow: 5 },
+    roleEnrollments: { Lead: 5, Follow: 4 },
     waitingList: [{ studentName: 'Carlos M.', role: 'Lead', timestamp: 1741996800000 }],
     pairs: [
       { name1: 'Maria', role1: 'Lead', name2: 'João', role2: 'Follow', isPreformed: true },
