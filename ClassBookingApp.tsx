@@ -291,6 +291,11 @@ export default function ClassBookingApp() {
   };
 
   const handleBook = (cls: ClassItem, bookingData: Omit<Booking, 'pricePaid'>) => {
+    // For no-role classes, enrolled is incremented here.
+    // For role classes, handleSoloBook/handlePairBook increment enrolled before calling here.
+    if (!bookingData.bookingType) {
+      setClasses(prev => prev.map(c => c.id === cls.id ? { ...c, enrolled: c.enrolled + 1 } : c));
+    }
     setBookedIds(prev => new Map(prev).set(cls.id, {
       pricePaid: getDiscountedPrice(cls),
       ...bookingData,
