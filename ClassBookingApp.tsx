@@ -866,7 +866,7 @@ export default function ClassBookingApp() {
                                   </Pressable>
                                   <Pressable
                                     onPress={() => Linking.openURL(
-                                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cls.address)}`
+                                      `https://www.google.com/maps?q=${cls.lat},${cls.lng}&z=15`
                                     ).catch(() => {})}
                                     style={{
                                       flex: 1, backgroundColor: theme.accentLight + '18',
