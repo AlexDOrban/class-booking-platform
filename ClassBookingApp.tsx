@@ -393,6 +393,10 @@ export default function ClassBookingApp() {
                 newEnrollments = decrement(newEnrollments, booking.partnerRole);
                 enrolledDelta = 2;
               }
+              // For solo bookings still waiting for a partner, remove from waitingList
+              const newWaitingList = booking.bookingType === 'solo' && !booking.pairedWithBookingId
+                ? c.waitingList.filter(w => !(w.role === booking.role))
+                : c.waitingList;
               // Remove from pairs (match by the current user's role in name1 slot;
               // for simplicity remove first pair that includes booking.role)
               const newPairs = (() => {
@@ -405,6 +409,7 @@ export default function ClassBookingApp() {
                 ...c,
                 enrolled: Math.max(0, c.enrolled - enrolledDelta),
                 roleEnrollments: newEnrollments,
+                waitingList: newWaitingList,
                 pairs: newPairs,
               };
             }));
