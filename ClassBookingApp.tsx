@@ -440,7 +440,45 @@ export default function ClassBookingApp() {
         {/* ══ STUDENT VIEW ══ */}
         {view === 'student' && (
           <>
-            {/* Hero */}
+            {/* ── STUDENT TAB BAR ── */}
+            <View style={{
+              flexDirection: 'row', backgroundColor: theme.surfaceAlt,
+              borderRadius: 10, padding: 3,
+              borderWidth: 1, borderColor: theme.border,
+              marginBottom: 20,
+            }}>
+              {(['browse', 'bookings'] as const).map(tab => {
+                const isActive = studentTab === tab;
+                const label = tab === 'browse'
+                  ? 'Browse Classes'
+                  : bookedIds.size > 0
+                    ? `My Bookings  ${bookedIds.size}`
+                    : 'My Bookings';
+                return (
+                  <Pressable
+                    key={tab}
+                    onPress={() => { setStudentTab(tab); setExpandedBookingId(null); }}
+                    style={{
+                      flex: 1, paddingVertical: 7, paddingHorizontal: 10,
+                      borderRadius: 7, alignItems: 'center',
+                      backgroundColor: isActive ? theme.accent : 'transparent',
+                    }}
+                  >
+                    <Text style={{
+                      color: isActive ? '#fff' : theme.muted,
+                      fontWeight: '600', fontSize: 13,
+                      fontFamily: 'DMSans_600SemiBold',
+                    }}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {studentTab === 'browse' && (
+              <>
+                {/* Hero */}
             <View style={{ marginBottom: 24 }}>
               <Text style={{
                 fontFamily: 'CormorantGaramond_600SemiBold',
@@ -661,6 +699,8 @@ export default function ClassBookingApp() {
                 );
               })}
             </View>
+              </>
+            )}
           </>
         )}
 
