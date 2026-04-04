@@ -1,0 +1,1709 @@
+# Class Booking Platform — Web to React Native Conversion
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Convert `class-booking-platform_2.jsx` (web React/HTML/CSS) into a cross-platform React Native app that runs on iOS, Android, and web, preserving all functionality.
+
+**Architecture:** `App.tsx` loads fonts via `useFonts` and renders `ClassBookingApp.tsx`. All state, views (student/teacher), modals, and animations live in `ClassBookingApp.tsx`. `components/CustomDropdown.tsx` is the only extracted component, replacing all `<select>` elements.
+
+**Tech Stack:** React Native 0.83.2, Expo SDK 55, expo-linear-gradient, expo-linking, expo-font, @expo-google-fonts/dm-sans, @expo-google-fonts/cormorant-garamond, Animated API.
+
+---
+
+### Task 1: Install Google Fonts packages
+
+**Files:**
+- Modify: `package.json` (via npm install)
+
+- [ ] **Step 1: Install both font packages**
+
+```bash
+npx expo install @expo-google-fonts/dm-sans @expo-google-fonts/cormorant-garamond
+```
+
+Expected output: `Added N packages … using npm`
+
+- [ ] **Step 2: Verify packages appear in package.json**
+
+```bash
+grep -E "dm-sans|cormorant" package.json
+```
+
+Expected output: two lines with `@expo-google-fonts/dm-sans` and `@expo-google-fonts/cormorant-garamond`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add package.json package-lock.json
+git commit -m "feat: install @expo-google-fonts/dm-sans and cormorant-garamond"
+```
+
+---
+
+### Task 2: Create CustomDropdown component
+
+**Files:**
+- Create: `components/CustomDropdown.tsx`
+
+- [ ] **Step 1: Create the components directory and file**
+
+Create `components/CustomDropdown.tsx` with this complete content:
+
+```tsx
+import React, { useState, useRef } from 'react';
+import {
+  View, Text, Pressable, Modal, Animated,
+  StyleSheet,
+} from 'react-native';
+
+interface Option {
+  label: string;
+  value: string;
+}
+
+interface Props {
+  value: string;
+  options: Option[];
+  onChange: (value: string) => void;
+  border: string;
+  surfaceAlt: string;
+  surface: string;
+  text: string;
+  muted: string;
+}
+
+export default function CustomDropdown({
+  value, options, onChange, border, surfaceAlt, surface, text, muted,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const [layout, setLayout] = useState({ x: 0, y: 0, width: 0 });
+  const triggerRef = useRef<View>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const openMenu = () => {
+    triggerRef.current?.measure((_x, _y, width, _height, pageX, pageY) => {
+      setLayout({ x: pageX, y: pageY + _height + 4, width });
+      setOpen(true);
+      Animated.timing(fadeAnim, {
+        toValue: 1, duration: 120, useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const closeMenu = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0, duration: 100, useNativeDriver: true,
+    }).start(() => setOpen(false));
+  };
+
+  const select = (v: string) => {
+    onChange(v);
+    closeMenu();
+  };
+
+  const currentLabel = options.find(o => o.value === value)?.label ?? value;
+
+  return (
+    <>
+      <Pressable
+        ref={triggerRef}
+        onPress={open ? closeMenu : openMenu}
+        style={{
+          flexDirection: 'row', alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 12, paddingVertical: 8,
+          borderRadius: 8, borderWidth: 1, borderColor: border,
+          backgroundColor: surfaceAlt,
+        }}
+      >
+        <Text style={{ color: text, fontSize: 13 }}>{currentLabel}</Text>
+        <Text style={{ color: muted, fontSize: 11, marginLeft: 6 }}>
+          {open ? '▴' : '▾'}
+        </Text>
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="none" onRequestClose={closeMenu}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={closeMenu} />
+        <Animated.View style={{
+          position: 'absolute',
+          top: layout.y,
+          left: layout.x,
+          width: layout.width,
+          backgroundColor: surface,
+          borderRadius: 8, borderWidth: 1, borderColor: border,
+          opacity: fadeAnim,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 8,
+          zIndex: 9999,
+        }}>
+          {options.map(opt => (
+            <Pressable
+              key={opt.value}
+              onPress={() => select(opt.value)}
+              style={({ pressed }) => ({
+                paddingHorizontal: 12, paddingVertical: 10,
+                backgroundColor: pressed ? surfaceAlt : 'transparent',
+              })}
+            >
+              <Text style={{
+                color: opt.value === value ? '#7c5cbf' : text,
+                fontSize: 13,
+                fontWeight: opt.value === value ? '600' : '400',
+              }}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          ))}
+        </Animated.View>
+      </Modal>
+    </>
+  );
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add components/CustomDropdown.tsx
+git commit -m "feat: add CustomDropdown RN component replacing <select>"
+```
+
+---
+
+### Task 3: Update App.tsx with font loading
+
+**Files:**
+- Modify: `App.tsx`
+
+- [ ] **Step 1: Replace App.tsx with this complete content**
+
+```tsx
+import { StatusBar } from 'expo-status-bar';
+import { View, ActivityIndicator } from 'react-native';
+import {
+  useFonts,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
+import {
+  CormorantGaramond_600SemiBold,
+  CormorantGaramond_600SemiBold_Italic,
+} from '@expo-google-fonts/cormorant-garamond';
+import ClassBookingApp from './ClassBookingApp';
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
+    CormorantGaramond_600SemiBold,
+    CormorantGaramond_600SemiBold_Italic,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f9f7f4', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#7c5cbf" />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <ClassBookingApp />
+      <StatusBar style="auto" />
+    </>
+  );
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add App.tsx
+git commit -m "feat: load DM Sans + Cormorant Garamond fonts in App.tsx"
+```
+
+---
+
+### Task 4: Create ClassBookingApp.tsx
+
+**Files:**
+- Create: `ClassBookingApp.tsx`
+
+- [ ] **Step 1: Create ClassBookingApp.tsx with the complete file below**
+
+```tsx
+import React, { useState, useRef } from 'react';
+import {
+  View, Text, Pressable, TextInput, ScrollView, Modal,
+  Animated, StyleSheet, useWindowDimensions, SafeAreaView,
+  Platform, KeyboardAvoidingView,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
+import CustomDropdown from './components/CustomDropdown';
+
+// ─── DATA ────────────────────────────────────────────────────────────────────
+
+const initialClasses: ClassItem[] = [
+  {
+    id: 1,
+    title: 'Morning Yoga Flow',
+    teacher: 'Sofia Martens',
+    category: 'Wellness',
+    description: 'A gentle morning flow to start your day with clarity and energy.',
+    address: 'Rue de la Loi 42, Brussels',
+    lat: 50.8467,
+    lng: 4.3572,
+    date: '2026-03-10',
+    time: '08:00',
+    duration: 60,
+    capacity: 15,
+    enrolled: 8,
+    basePrice: 22,
+    discounts: { student: 20, retired: 30 },
+    color: '#a8d8b9',
+  },
+  {
+    id: 2,
+    title: 'Advanced Photography',
+    teacher: 'Luca Fontaine',
+    category: 'Art',
+    description: 'Master composition, lighting and post-processing techniques.',
+    address: 'Avenue Louise 149, Brussels',
+    lat: 50.8355,
+    lng: 4.3622,
+    date: '2026-03-12',
+    time: '14:00',
+    duration: 120,
+    capacity: 10,
+    enrolled: 7,
+    basePrice: 45,
+    discounts: { student: 15, retired: 25 },
+    color: '#f4c9a5',
+  },
+  {
+    id: 3,
+    title: 'French Cuisine Basics',
+    teacher: 'Amélie Dubois',
+    category: 'Cooking',
+    description: 'Learn authentic French techniques from a professional chef.',
+    address: 'Place Sainte-Catherine 5, Brussels',
+    lat: 50.852,
+    lng: 4.348,
+    date: '2026-03-15',
+    time: '11:00',
+    duration: 180,
+    capacity: 8,
+    enrolled: 8,
+    basePrice: 65,
+    discounts: { student: 10, retired: 20 },
+    color: '#c5b8f0',
+  },
+];
+
+const categories = ['All', 'Wellness', 'Art', 'Cooking', 'Music', 'Language', 'Tech', 'Sport'];
+const colorOptions = ['#a8d8b9', '#f4c9a5', '#c5b8f0', '#f9c5d1', '#b8d8f4', '#f4e6a5', '#f0b8b8'];
+
+// ─── TYPES ───────────────────────────────────────────────────────────────────
+
+interface ClassItem {
+  id: number;
+  title: string;
+  teacher: string;
+  category: string;
+  description: string;
+  address: string;
+  lat: number;
+  lng: number;
+  date: string;
+  time: string;
+  duration: number;
+  capacity: number;
+  enrolled: number;
+  basePrice: number;
+  discounts: { student: number; retired: number };
+  color: string;
+}
+
+interface NewClassForm {
+  title: string;
+  teacher: string;
+  category: string;
+  description: string;
+  address: string;
+  lat: string;
+  lng: string;
+  date: string;
+  time: string;
+  duration: string;
+  capacity: string;
+  basePrice: string;
+  discounts: { student: string; retired: string };
+  color: string;
+}
+
+// ─── THEME ───────────────────────────────────────────────────────────────────
+
+function useTheme(dark: boolean) {
+  return {
+    bg: dark ? '#0f1117' : '#f9f7f4',
+    surface: dark ? '#1a1d27' : '#ffffff',
+    surfaceAlt: dark ? '#22263a' : '#f2f0ed',
+    border: dark ? '#2e3348' : '#e8e4de',
+    text: dark ? '#eeeaf0' : '#1a1625',
+    muted: dark ? '#7a7f9a' : '#8a8590',
+    accent: '#7c5cbf',
+    accentLight: dark ? '#9d7de0' : '#7c5cbf',
+    green: '#3fba84',
+    amber: '#f59e0b',
+  };
+}
+
+type Theme = ReturnType<typeof useTheme>;
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function FieldGroup({ label, children, theme }: { label: string; children: React.ReactNode; theme: Theme }) {
+  return (
+    <View style={{ gap: 5 }}>
+      <Text style={{
+        fontSize: 12, fontWeight: '600', color: theme.muted,
+        textTransform: 'uppercase', letterSpacing: 0.5,
+        fontFamily: 'DMSans_600SemiBold',
+      }}>
+        {label}
+      </Text>
+      {children}
+    </View>
+  );
+}
+
+function RNInput({
+  value, onChange, placeholder, theme, keyboardType, bgOverride, multiline,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  theme: Theme;
+  keyboardType?: 'default' | 'numeric' | 'email-address';
+  bgOverride?: string;
+  multiline?: boolean;
+}) {
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChange}
+      placeholder={placeholder}
+      placeholderTextColor={theme.muted}
+      keyboardType={keyboardType ?? 'default'}
+      multiline={multiline}
+      style={{
+        padding: 10, borderRadius: 9, borderWidth: 1,
+        borderColor: theme.border,
+        backgroundColor: bgOverride ?? theme.surfaceAlt,
+        color: theme.text, fontSize: 14,
+        fontFamily: 'DMSans_400Regular',
+        ...(multiline ? { minHeight: 72, textAlignVertical: 'top' } : {}),
+      }}
+    />
+  );
+}
+
+// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+
+const BLANK_NEW_CLASS: NewClassForm = {
+  title: '', teacher: '', category: 'Wellness', description: '',
+  address: '', lat: '', lng: '', date: '', time: '', duration: '60',
+  capacity: '10', basePrice: '30',
+  discounts: { student: '20', retired: '30' }, color: '#a8d8b9',
+};
+
+export default function ClassBookingApp() {
+  const [dark, setDark] = useState(false);
+  const [view, setView] = useState<'student' | 'teacher'>('student');
+  const [classes, setClasses] = useState<ClassItem[]>(initialClasses);
+  const [selected, setSelected] = useState<ClassItem | null>(null);
+  const [bookingModal, setBookingModal] = useState<ClassItem | null>(null);
+  const [createModal, setCreateModal] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [profileType, setProfileType] = useState<'standard' | 'student' | 'retired'>('standard');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [newClass, setNewClass] = useState<NewClassForm>(BLANK_NEW_CLASS);
+
+  const theme = useTheme(dark);
+  const { width, height: screenHeight } = useWindowDimensions();
+
+  // Dark toggle animation
+  const toggleAnim = useRef(new Animated.Value(0)).current;
+
+  // Success banner animation
+  const bannerTranslateY = useRef(new Animated.Value(-30)).current;
+  const bannerOpacity = useRef(new Animated.Value(0)).current;
+
+  const toggleDark = () => {
+    const next = !dark;
+    setDark(next);
+    Animated.spring(toggleAnim, { toValue: next ? 1 : 0, useNativeDriver: true }).start();
+  };
+
+  const thumbX = toggleAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 24] });
+
+  const filteredClasses = classes.filter(
+    c => filterCategory === 'All' || c.category === filterCategory
+  );
+
+  const getDiscountedPrice = (cls: ClassItem) => {
+    if (profileType === 'student') return (cls.basePrice * (1 - cls.discounts.student / 100)).toFixed(2);
+    if (profileType === 'retired') return (cls.basePrice * (1 - cls.discounts.retired / 100)).toFixed(2);
+    return cls.basePrice.toFixed(2);
+  };
+
+  const getDiscountLabel = (cls: ClassItem) => {
+    if (profileType === 'student') return `${cls.discounts.student}% student discount`;
+    if (profileType === 'retired') return `${cls.discounts.retired}% senior discount`;
+    return null;
+  };
+
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg);
+    bannerTranslateY.setValue(-30);
+    bannerOpacity.setValue(0);
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(bannerTranslateY, { toValue: 0, useNativeDriver: true }),
+        Animated.timing(bannerOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]),
+      Animated.delay(3000),
+      Animated.timing(bannerOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start(() => setSuccessMsg(''));
+  };
+
+  const handleBook = (cls: ClassItem) => {
+    if (cls.enrolled >= cls.capacity) return;
+    setClasses(prev => prev.map(c => c.id === cls.id ? { ...c, enrolled: c.enrolled + 1 } : c));
+    setBookingModal(null);
+    setSelected(null);
+    showSuccess(`You're booked into "${cls.title}"!`);
+  };
+
+  const handleCreateClass = () => {
+    const lat = parseFloat(newClass.lat) || 50.85 + (Math.random() - 0.5) * 0.03;
+    const lng = parseFloat(newClass.lng) || 4.35 + (Math.random() - 0.5) * 0.04;
+    const cls: ClassItem = {
+      id: Date.now(),
+      title: newClass.title,
+      teacher: newClass.teacher,
+      category: newClass.category,
+      description: newClass.description,
+      address: newClass.address,
+      lat, lng,
+      date: newClass.date,
+      time: newClass.time,
+      enrolled: 0,
+      duration: Number(newClass.duration),
+      capacity: Number(newClass.capacity),
+      basePrice: Number(newClass.basePrice),
+      discounts: {
+        student: Number(newClass.discounts.student),
+        retired: Number(newClass.discounts.retired),
+      },
+      color: newClass.color,
+    };
+    setClasses(prev => [...prev, cls]);
+    setCreateModal(false);
+    setNewClass(BLANK_NEW_CLASS);
+    showSuccess(`Class "${cls.title}" created successfully!`);
+  };
+
+  const numCols = width >= 600 ? 2 : 1;
+  const cardWidth = (width - 40 - (numCols - 1) * 16) / numCols;
+
+  const profileOptions = [
+    { label: 'Regular', value: 'standard' },
+    { label: 'Student', value: 'student' },
+    { label: 'Senior / Retired', value: 'retired' },
+  ];
+
+  const categoryOptions = categories
+    .filter(c => c !== 'All')
+    .map(c => ({ label: c, value: c }));
+
+  const canCreate = !!(newClass.title && newClass.teacher && newClass.address && newClass.date);
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
+
+      {/* ── HEADER ── */}
+      <View style={{
+        backgroundColor: theme.surface,
+        borderBottomWidth: 1, borderBottomColor: theme.border,
+        paddingHorizontal: 20, height: 60,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: dark ? 0.4 : 0.06,
+        shadowRadius: 8,
+        elevation: 4,
+      }}>
+        {/* Logo */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <LinearGradient
+            colors={['#7c5cbf', '#e06b9a']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={{
+              width: 32, height: 32, borderRadius: 9,
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 16 }}>🎓</Text>
+          </LinearGradient>
+          <Text style={{
+            fontFamily: 'CormorantGaramond_600SemiBold',
+            fontSize: 22, color: theme.text, letterSpacing: 0.3,
+          }}>
+            Classe
+          </Text>
+        </View>
+
+        {/* Controls */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {/* View toggle */}
+          <View style={{
+            flexDirection: 'row', backgroundColor: theme.surfaceAlt,
+            borderRadius: 10, padding: 3,
+            borderWidth: 1, borderColor: theme.border,
+          }}>
+            {(['student', 'teacher'] as const).map(v => (
+              <Pressable
+                key={v}
+                onPress={() => setView(v)}
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 5, borderRadius: 7,
+                  backgroundColor: view === v ? theme.accent : 'transparent',
+                }}
+              >
+                <Text style={{
+                  color: view === v ? '#fff' : theme.muted,
+                  fontWeight: '600', fontSize: 12,
+                  fontFamily: 'DMSans_600SemiBold',
+                }}>
+                  {v === 'student' ? '📚 Student' : '🎤 Teacher'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* Dark mode toggle */}
+          <Pressable
+            onPress={toggleDark}
+            style={{
+              width: 50, height: 27, borderRadius: 14,
+              backgroundColor: dark ? theme.accent : '#d0cdd8',
+              justifyContent: 'center', paddingHorizontal: 4,
+            }}
+          >
+            <Animated.View style={{
+              width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff',
+              alignItems: 'center', justifyContent: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.2, shadowRadius: 2, elevation: 2,
+              transform: [{ translateX: thumbX }],
+            }}>
+              <Text style={{ fontSize: 10 }}>{dark ? '🌙' : '☀️'}</Text>
+            </Animated.View>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* ── SUCCESS BANNER ── */}
+      {successMsg ? (
+        <Animated.View style={{
+          position: 'absolute', top: 68, alignSelf: 'center',
+          backgroundColor: theme.green,
+          paddingHorizontal: 20, paddingVertical: 10,
+          borderRadius: 10, zIndex: 999,
+          opacity: bannerOpacity,
+          transform: [{ translateY: bannerTranslateY }],
+          shadowColor: theme.green,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+        }}>
+          <Text style={{
+            color: '#fff', fontWeight: '600', fontSize: 14,
+            fontFamily: 'DMSans_600SemiBold',
+          }}>
+            ✅ {successMsg}
+          </Text>
+        </Animated.View>
+      ) : null}
+
+      {/* ── MAIN SCROLL ── */}
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+
+        {/* ══ STUDENT VIEW ══ */}
+        {view === 'student' && (
+          <>
+            {/* Hero */}
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{
+                fontFamily: 'CormorantGaramond_600SemiBold',
+                fontSize: width >= 600 ? 48 : 32,
+                lineHeight: width >= 600 ? 54 : 38,
+                color: theme.text, marginBottom: 10,
+              }}>
+                {'Discover & Book\n'}
+                <Text style={{
+                  color: theme.accentLight,
+                  fontFamily: 'CormorantGaramond_600SemiBold_Italic',
+                }}>
+                  exceptional classes
+                </Text>
+              </Text>
+              <Text style={{
+                color: theme.muted, fontSize: 15,
+                fontFamily: 'DMSans_400Regular',
+              }}>
+                Learn from passionate teachers across Brussels and beyond.
+              </Text>
+            </View>
+
+            {/* Category filter pills */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 12 }}
+              contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+            >
+              {categories.map(cat => (
+                <Pressable
+                  key={cat}
+                  onPress={() => setFilterCategory(cat)}
+                  style={{
+                    paddingHorizontal: 14, paddingVertical: 6,
+                    borderRadius: 20, borderWidth: 1, borderColor: theme.border,
+                    backgroundColor: filterCategory === cat ? theme.accent : theme.surfaceAlt,
+                  }}
+                >
+                  <Text style={{
+                    color: filterCategory === cat ? '#fff' : theme.text,
+                    fontWeight: '500', fontSize: 13,
+                    fontFamily: 'DMSans_500Medium',
+                  }}>
+                    {cat}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* Profile type selector */}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              gap: 10, marginBottom: 20,
+            }}>
+              <Text style={{
+                color: theme.muted, fontSize: 13,
+                fontFamily: 'DMSans_400Regular',
+              }}>
+                I am a:
+              </Text>
+              <View style={{ flex: 1, maxWidth: 220 }}>
+                <CustomDropdown
+                  value={profileType}
+                  options={profileOptions}
+                  onChange={v => setProfileType(v as 'standard' | 'student' | 'retired')}
+                  border={theme.border}
+                  surfaceAlt={theme.surfaceAlt}
+                  surface={theme.surface}
+                  text={theme.text}
+                  muted={theme.muted}
+                />
+              </View>
+            </View>
+
+            {/* Class cards grid */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+              {filteredClasses.map(cls => {
+                const full = cls.enrolled >= cls.capacity;
+                const discLabel = getDiscountLabel(cls);
+                return (
+                  <Pressable
+                    key={cls.id}
+                    onPress={() => setSelected(cls)}
+                    style={({ pressed }) => ({
+                      width: cardWidth,
+                      backgroundColor: theme.surface,
+                      borderRadius: 16, borderWidth: 1, borderColor: theme.border,
+                      overflow: 'hidden',
+                      opacity: pressed ? 0.93 : 1,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: dark ? 0.3 : 0.07,
+                      shadowRadius: 12, elevation: 4,
+                    })}
+                  >
+                    {/* Colour bar */}
+                    <LinearGradient
+                      colors={[cls.color, cls.color + '88']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={{ height: 8 }}
+                    />
+                    <View style={{ padding: 18 }}>
+                      {/* Category + Full badge */}
+                      <View style={{
+                        flexDirection: 'row', justifyContent: 'space-between',
+                        marginBottom: 8,
+                      }}>
+                        <View style={{
+                          backgroundColor: theme.accentLight + '18',
+                          paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5,
+                        }}>
+                          <Text style={{
+                            fontSize: 11, fontWeight: '700', letterSpacing: 1,
+                            color: theme.accentLight, textTransform: 'uppercase',
+                            fontFamily: 'DMSans_700Bold',
+                          }}>
+                            {cls.category}
+                          </Text>
+                        </View>
+                        {full && (
+                          <View style={{
+                            backgroundColor: '#e0505018',
+                            paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5,
+                          }}>
+                            <Text style={{ fontSize: 11, color: '#e05050', fontWeight: '700', fontFamily: 'DMSans_700Bold' }}>
+                              FULL
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <Text style={{
+                        fontSize: 18, fontWeight: '600', color: theme.text,
+                        lineHeight: 24, marginBottom: 3,
+                        fontFamily: 'DMSans_600SemiBold',
+                      }}>
+                        {cls.title}
+                      </Text>
+                      <Text style={{
+                        fontSize: 13, color: theme.muted,
+                        marginBottom: 10, fontFamily: 'DMSans_400Regular',
+                      }}>
+                        with {cls.teacher}
+                      </Text>
+                      <Text style={{
+                        fontSize: 14, color: theme.muted,
+                        lineHeight: 21, marginBottom: 12,
+                        fontFamily: 'DMSans_400Regular',
+                      }}>
+                        {cls.description}
+                      </Text>
+
+                      {/* Meta row */}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                        <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                          📅 {new Date(cls.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {cls.time}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                          ⏱ {cls.duration}min
+                        </Text>
+                        <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                          👥 {cls.enrolled}/{cls.capacity}
+                        </Text>
+                      </View>
+
+                      {/* Price + Book button */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View>
+                          <Text style={{
+                            fontSize: 20, fontWeight: '700', color: theme.accentLight,
+                            fontFamily: 'DMSans_700Bold',
+                          }}>
+                            €{getDiscountedPrice(cls)}
+                          </Text>
+                          {discLabel && (
+                            <View style={{
+                              backgroundColor: theme.green + '18',
+                              paddingHorizontal: 7, paddingVertical: 2,
+                              borderRadius: 5, marginTop: 2,
+                            }}>
+                              <Text style={{ fontSize: 11, color: theme.green, fontWeight: '700', fontFamily: 'DMSans_700Bold' }}>
+                                {discLabel}
+                              </Text>
+                            </View>
+                          )}
+                          {profileType !== 'standard' && (
+                            <Text style={{
+                              fontSize: 11, color: theme.muted,
+                              textDecorationLine: 'line-through', marginTop: 2,
+                              fontFamily: 'DMSans_400Regular',
+                            }}>
+                              €{cls.basePrice.toFixed(2)}
+                            </Text>
+                          )}
+                        </View>
+                        <Pressable
+                          onPress={() => { if (!full) setBookingModal(cls); }}
+                          disabled={full}
+                          style={({ pressed }) => ({
+                            paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9,
+                            backgroundColor: full ? theme.border : theme.accent,
+                            opacity: pressed && !full ? 0.85 : 1,
+                          })}
+                        >
+                          <Text style={{
+                            color: full ? theme.muted : '#fff',
+                            fontWeight: '600', fontSize: 13,
+                            fontFamily: 'DMSans_600SemiBold',
+                          }}>
+                            {full ? 'Full' : 'Book now'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {/* ══ TEACHER VIEW ══ */}
+        {view === 'teacher' && (
+          <>
+            {/* Header row */}
+            <View style={{
+              flexDirection: 'row', justifyContent: 'space-between',
+              alignItems: 'flex-end', marginBottom: 24,
+            }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{
+                  fontFamily: 'CormorantGaramond_600SemiBold',
+                  fontSize: width >= 600 ? 40 : 28,
+                  lineHeight: width >= 600 ? 46 : 34,
+                  color: theme.text, marginBottom: 6,
+                }}>
+                  {'Manage your\n'}
+                  <Text style={{
+                    color: theme.accentLight,
+                    fontFamily: 'CormorantGaramond_600SemiBold_Italic',
+                  }}>
+                    classes
+                  </Text>
+                </Text>
+                <Text style={{ color: theme.muted, fontSize: 14, fontFamily: 'DMSans_400Regular' }}>
+                  Create, organise, and track your sessions.
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setCreateModal(true)}
+                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+              >
+                <LinearGradient
+                  colors={[theme.accent, '#e06b9a']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={{
+                    paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12,
+                    shadowColor: theme.accent,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14, fontFamily: 'DMSans_700Bold' }}>
+                    + New Class
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+
+            {/* Stats cards */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginBottom: 24 }}>
+              {[
+                { label: 'Total Classes', value: String(classes.length), icon: '📋' },
+                {
+                  label: 'Total Students',
+                  value: String(classes.reduce((a, c) => a + c.enrolled, 0)),
+                  icon: '👥',
+                },
+                {
+                  label: 'Avg. Fill Rate',
+                  value: Math.round(
+                    classes.reduce((a, c) => a + c.enrolled / c.capacity, 0) / classes.length * 100
+                  ) + '%',
+                  icon: '📊',
+                },
+              ].map(stat => (
+                <View key={stat.label} style={{
+                  flex: 1, minWidth: 100,
+                  backgroundColor: theme.surface,
+                  borderRadius: 14, borderWidth: 1, borderColor: theme.border,
+                  padding: 16,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: dark ? 0.2 : 0.05,
+                  shadowRadius: 6, elevation: 3,
+                }}>
+                  <Text style={{ fontSize: 22, marginBottom: 6 }}>{stat.icon}</Text>
+                  <Text style={{ fontSize: 24, fontWeight: '700', color: theme.accentLight, fontFamily: 'DMSans_700Bold' }}>
+                    {stat.value}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                    {stat.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Classes list */}
+            <View style={{
+              backgroundColor: theme.surface,
+              borderRadius: 16, borderWidth: 1, borderColor: theme.border,
+              overflow: 'hidden',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: dark ? 0.25 : 0.06,
+              shadowRadius: 12, elevation: 4,
+            }}>
+              {classes.map((cls, i) => (
+                <View key={cls.id} style={{
+                  flexDirection: 'row', flexWrap: 'wrap',
+                  alignItems: 'center', gap: 10,
+                  paddingHorizontal: 20, paddingVertical: 16,
+                  borderBottomWidth: i < classes.length - 1 ? 1 : 0,
+                  borderBottomColor: theme.border,
+                  backgroundColor: i % 2 === 1 ? theme.surfaceAlt + '80' : 'transparent',
+                }}>
+                  <View style={{
+                    width: 8, height: 8, borderRadius: 4,
+                    backgroundColor: cls.color,
+                  }} />
+                  <View style={{ flex: 1, minWidth: 130 }}>
+                    <Text style={{ fontWeight: '600', fontSize: 14, color: theme.text, fontFamily: 'DMSans_600SemiBold' }}>
+                      {cls.title}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                      {cls.category} · {cls.date} {cls.time}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: theme.muted, flex: 1, minWidth: 90, fontFamily: 'DMSans_400Regular' }}>
+                    📍 {cls.address.slice(0, 26)}…
+                  </Text>
+                  {/* Fill bar */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{
+                      width: 72, height: 6, borderRadius: 3,
+                      backgroundColor: theme.border, overflow: 'hidden',
+                    }}>
+                      <View style={{
+                        width: (cls.enrolled / cls.capacity) * 72,
+                        height: 6,
+                        backgroundColor: cls.enrolled >= cls.capacity ? '#e05050' : theme.green,
+                        borderRadius: 3,
+                      }} />
+                    </View>
+                    <Text style={{ fontSize: 11, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                      {cls.enrolled}/{cls.capacity}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: theme.accentLight, minWidth: 44, textAlign: 'right', fontFamily: 'DMSans_700Bold' }}>
+                    €{cls.basePrice}
+                  </Text>
+                  <Pressable
+                    onPress={() => setSelected(cls)}
+                    style={({ pressed }) => ({
+                      paddingHorizontal: 12, paddingVertical: 6,
+                      borderRadius: 8, borderWidth: 1, borderColor: theme.border,
+                      backgroundColor: pressed ? theme.surfaceAlt : 'transparent',
+                    })}
+                  >
+                    <Text style={{ fontSize: 12, color: theme.text, fontWeight: '500', fontFamily: 'DMSans_500Medium' }}>
+                      View details
+                    </Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      {/* ══ CLASS DETAIL MODAL ══ */}
+      <Modal
+        visible={!!selected}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSelected(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setSelected(null)} />
+          <View style={{ flex: 1, justifyContent: 'center', padding: 16 }} pointerEvents="box-none">
+            <View style={{
+              backgroundColor: theme.surface,
+              borderRadius: 20, maxHeight: screenHeight * 0.9,
+              borderWidth: 1, borderColor: theme.border,
+              overflow: 'hidden',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 24 },
+              shadowOpacity: 0.4, shadowRadius: 40, elevation: 20,
+            }}>
+              {selected && (
+                <>
+                  <LinearGradient
+                    colors={[selected.color, theme.accent]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={{ height: 10 }}
+                  />
+                  <ScrollView contentContainerStyle={{ padding: 24 }}>
+                    {/* Top row */}
+                    <View style={{
+                      flexDirection: 'row', justifyContent: 'space-between',
+                      alignItems: 'flex-start', marginBottom: 18,
+                    }}>
+                      <View style={{
+                        backgroundColor: theme.accentLight + '18',
+                        paddingHorizontal: 9, paddingVertical: 3, borderRadius: 5,
+                      }}>
+                        <Text style={{
+                          fontSize: 11, fontWeight: '700', letterSpacing: 1,
+                          color: theme.accentLight, textTransform: 'uppercase',
+                          fontFamily: 'DMSans_700Bold',
+                        }}>
+                          {selected.category}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => setSelected(null)}
+                        style={({ pressed }) => ({
+                          backgroundColor: pressed ? theme.border : theme.surfaceAlt,
+                          width: 30, height: 30, borderRadius: 8,
+                          alignItems: 'center', justifyContent: 'center',
+                        })}
+                      >
+                        <Text style={{ color: theme.muted, fontSize: 18 }}>×</Text>
+                      </Pressable>
+                    </View>
+
+                    <Text style={{
+                      fontFamily: 'CormorantGaramond_600SemiBold',
+                      fontSize: 28, color: theme.text, marginBottom: 4,
+                    }}>
+                      {selected.title}
+                    </Text>
+                    <Text style={{ color: theme.muted, marginBottom: 14, fontFamily: 'DMSans_400Regular' }}>
+                      with <Text style={{ color: theme.text, fontFamily: 'DMSans_600SemiBold' }}>{selected.teacher}</Text>
+                    </Text>
+                    <Text style={{ lineHeight: 25, color: theme.muted, marginBottom: 18, fontFamily: 'DMSans_400Regular' }}>
+                      {selected.description}
+                    </Text>
+
+                    {/* Info grid */}
+                    <View style={{
+                      backgroundColor: theme.surfaceAlt,
+                      borderRadius: 12, padding: 16, marginBottom: 18,
+                    }}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                        {[
+                          ['📅 Date', new Date(selected.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })],
+                          ['🕐 Time', `${selected.time} · ${selected.duration} min`],
+                          ['👥 Spots', `${selected.enrolled}/${selected.capacity} enrolled`],
+                          ['🎓 Student', `-${selected.discounts.student}%`],
+                          ['👴 Senior', `-${selected.discounts.retired}%`],
+                          ['💶 Base price', `€${selected.basePrice}`],
+                        ].map(([label, val]) => (
+                          <View key={label} style={{ width: '50%', paddingRight: 8, marginBottom: 12 }}>
+                            <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 2, fontFamily: 'DMSans_400Regular' }}>
+                              {label}
+                            </Text>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text, fontFamily: 'DMSans_600SemiBold' }}>
+                              {val}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+
+                    {/* Location */}
+                    <View style={{
+                      backgroundColor: theme.surfaceAlt,
+                      borderRadius: 12, padding: 16, marginBottom: 18,
+                    }}>
+                      <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 6, fontFamily: 'DMSans_400Regular' }}>
+                        📍 Location
+                      </Text>
+                      <Text style={{ fontWeight: '600', color: theme.text, marginBottom: 12, fontFamily: 'DMSans_600SemiBold' }}>
+                        {selected.address}
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <Pressable
+                          onPress={() => Linking.openURL(`https://www.google.com/maps?q=${selected.lat},${selected.lng}&z=15`)}
+                          style={({ pressed }) => ({
+                            flex: 1, backgroundColor: '#4285F4',
+                            paddingVertical: 9, borderRadius: 9,
+                            alignItems: 'center', opacity: pressed ? 0.85 : 1,
+                          })}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13, fontFamily: 'DMSans_600SemiBold' }}>
+                            🗺 Google Maps
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => Linking.openURL(`https://maps.apple.com/?ll=${selected.lat},${selected.lng}&z=15`)}
+                          style={({ pressed }) => ({
+                            flex: 1, backgroundColor: dark ? '#1c1c1e' : '#000',
+                            paddingVertical: 9, borderRadius: 9,
+                            alignItems: 'center', opacity: pressed ? 0.85 : 1,
+                            borderWidth: 1, borderColor: theme.border,
+                          })}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13, fontFamily: 'DMSans_600SemiBold' }}>
+                            🍎 Apple Maps
+                          </Text>
+                        </Pressable>
+                      </View>
+                      <View style={{
+                        marginTop: 10,
+                        backgroundColor: theme.accentLight + '12',
+                        paddingHorizontal: 8, paddingVertical: 4,
+                        borderRadius: 5, alignSelf: 'flex-start',
+                      }}>
+                        <Text style={{
+                          fontSize: 11, color: theme.muted,
+                          fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+                        }}>
+                          {selected.lat.toFixed(4)}°N, {selected.lng.toFixed(4)}°E
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Book button (student view only) */}
+                    {view === 'student' && (
+                      <Pressable
+                        onPress={() => { setBookingModal(selected); setSelected(null); }}
+                        disabled={selected.enrolled >= selected.capacity}
+                        style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                      >
+                        <LinearGradient
+                          colors={
+                            selected.enrolled >= selected.capacity
+                              ? [theme.border, theme.border]
+                              : [theme.accent, '#e06b9a']
+                          }
+                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                          style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+                        >
+                          <Text style={{
+                            color: selected.enrolled >= selected.capacity ? theme.muted : '#fff',
+                            fontWeight: '700', fontSize: 16,
+                            fontFamily: 'DMSans_700Bold',
+                          }}>
+                            {selected.enrolled >= selected.capacity
+                              ? 'Class is full'
+                              : `Book for €${getDiscountedPrice(selected)}`}
+                          </Text>
+                        </LinearGradient>
+                      </Pressable>
+                    )}
+                  </ScrollView>
+                </>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══ BOOKING CONFIRMATION MODAL ══ */}
+      <Modal
+        visible={!!bookingModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setBookingModal(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setBookingModal(null)} />
+          <View style={{ flex: 1, justifyContent: 'center', padding: 16 }} pointerEvents="box-none">
+            <View style={{
+              backgroundColor: theme.surface, borderRadius: 20, padding: 28,
+              borderWidth: 1, borderColor: theme.border,
+              maxWidth: 400, alignSelf: 'center', width: '100%',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 24 },
+              shadowOpacity: 0.4, shadowRadius: 40, elevation: 20,
+            }}>
+              {bookingModal && (
+                <>
+                  <Text style={{ fontSize: 46, textAlign: 'center', marginBottom: 14 }}>🎟️</Text>
+                  <Text style={{
+                    fontSize: 22, fontWeight: '700', textAlign: 'center',
+                    marginBottom: 8, color: theme.text, fontFamily: 'DMSans_700Bold',
+                  }}>
+                    Confirm Booking
+                  </Text>
+                  <Text style={{
+                    color: theme.muted, textAlign: 'center',
+                    lineHeight: 24, marginBottom: 18,
+                    fontFamily: 'DMSans_400Regular',
+                  }}>
+                    {'You\'re about to book '}
+                    <Text style={{ color: theme.text, fontFamily: 'DMSans_600SemiBold' }}>
+                      {bookingModal.title}
+                    </Text>
+                    {' on '}
+                    {new Date(bookingModal.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}
+                    {' at '}
+                    {bookingModal.time}.
+                  </Text>
+                  <View style={{
+                    backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 14,
+                    flexDirection: 'row', justifyContent: 'space-between',
+                    alignItems: 'center', marginBottom: 20,
+                  }}>
+                    <Text style={{ color: theme.muted, fontSize: 14, fontFamily: 'DMSans_400Regular' }}>
+                      Total to pay
+                    </Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{
+                        fontSize: 24, fontWeight: '800', color: theme.accentLight,
+                        fontFamily: 'DMSans_700Bold',
+                      }}>
+                        €{getDiscountedPrice(bookingModal)}
+                      </Text>
+                      {getDiscountLabel(bookingModal) && (
+                        <Text style={{ fontSize: 11, color: theme.green, fontFamily: 'DMSans_400Regular' }}>
+                          {getDiscountLabel(bookingModal)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <Pressable
+                      onPress={() => setBookingModal(null)}
+                      style={({ pressed }) => ({
+                        flex: 1, paddingVertical: 12, borderRadius: 10,
+                        borderWidth: 1, borderColor: theme.border,
+                        alignItems: 'center',
+                        backgroundColor: pressed ? theme.surfaceAlt : 'transparent',
+                      })}
+                    >
+                      <Text style={{ color: theme.text, fontWeight: '600', fontFamily: 'DMSans_600SemiBold' }}>
+                        Cancel
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => handleBook(bookingModal)}
+                      style={({ pressed }) => ({ flex: 2, opacity: pressed ? 0.85 : 1 })}
+                    >
+                      <LinearGradient
+                        colors={[theme.accent, '#e06b9a']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={{
+                          paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: 'DMSans_700Bold' }}>
+                          Confirm & Book
+                        </Text>
+                      </LinearGradient>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══ CREATE CLASS MODAL ══ */}
+      <Modal
+        visible={createModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCreateModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCreateModal(false)} />
+            <View style={{
+              backgroundColor: theme.surface,
+              borderTopLeftRadius: 24, borderTopRightRadius: 24,
+              maxHeight: screenHeight * 0.92,
+              borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
+              borderColor: theme.border,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -8 },
+              shadowOpacity: 0.3, shadowRadius: 24, elevation: 20,
+            }}>
+              {/* Modal header */}
+              <View style={{
+                flexDirection: 'row', justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16,
+                borderBottomWidth: 1, borderBottomColor: theme.border,
+              }}>
+                <Text style={{
+                  fontFamily: 'CormorantGaramond_600SemiBold',
+                  fontSize: 24, color: theme.text,
+                }}>
+                  Create a New Class
+                </Text>
+                <Pressable
+                  onPress={() => setCreateModal(false)}
+                  style={({ pressed }) => ({
+                    backgroundColor: pressed ? theme.border : theme.surfaceAlt,
+                    width: 32, height: 32, borderRadius: 8,
+                    alignItems: 'center', justifyContent: 'center',
+                  })}
+                >
+                  <Text style={{ color: theme.muted, fontSize: 18 }}>×</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }}>
+                {/* Title */}
+                <FieldGroup label="Class Title" theme={theme}>
+                  <RNInput
+                    value={newClass.title}
+                    onChange={v => setNewClass(p => ({ ...p, title: v }))}
+                    placeholder="e.g. Morning Yoga Flow"
+                    theme={theme}
+                  />
+                </FieldGroup>
+
+                {/* Teacher + Category */}
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <FieldGroup label="Teacher Name" theme={theme}>
+                      <RNInput
+                        value={newClass.teacher}
+                        onChange={v => setNewClass(p => ({ ...p, teacher: v }))}
+                        placeholder="Your name"
+                        theme={theme}
+                      />
+                    </FieldGroup>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FieldGroup label="Category" theme={theme}>
+                      <CustomDropdown
+                        value={newClass.category}
+                        options={categoryOptions}
+                        onChange={v => setNewClass(p => ({ ...p, category: v }))}
+                        border={theme.border}
+                        surfaceAlt={theme.surfaceAlt}
+                        surface={theme.surface}
+                        text={theme.text}
+                        muted={theme.muted}
+                      />
+                    </FieldGroup>
+                  </View>
+                </View>
+
+                {/* Description */}
+                <FieldGroup label="Description" theme={theme}>
+                  <RNInput
+                    value={newClass.description}
+                    onChange={v => setNewClass(p => ({ ...p, description: v }))}
+                    placeholder="What will students learn?"
+                    theme={theme}
+                    multiline
+                  />
+                </FieldGroup>
+
+                {/* Location section */}
+                <View style={{ backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 16, gap: 10 }}>
+                  <Text style={{
+                    fontSize: 12, fontWeight: '700', color: theme.accentLight,
+                    textTransform: 'uppercase', letterSpacing: 0.8,
+                    fontFamily: 'DMSans_700Bold',
+                  }}>
+                    📍 Location
+                  </Text>
+                  <FieldGroup label="Street Address" theme={theme}>
+                    <RNInput
+                      value={newClass.address}
+                      onChange={v => setNewClass(p => ({ ...p, address: v }))}
+                      placeholder="e.g. Rue de la Loi 42, Brussels"
+                      theme={theme}
+                      bgOverride={theme.border + '50'}
+                    />
+                  </FieldGroup>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <FieldGroup label="Latitude (optional)" theme={theme}>
+                        <RNInput
+                          value={newClass.lat}
+                          onChange={v => setNewClass(p => ({ ...p, lat: v }))}
+                          placeholder="50.8503"
+                          theme={theme}
+                          keyboardType="numeric"
+                          bgOverride={theme.border + '50'}
+                        />
+                      </FieldGroup>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <FieldGroup label="Longitude (optional)" theme={theme}>
+                        <RNInput
+                          value={newClass.lng}
+                          onChange={v => setNewClass(p => ({ ...p, lng: v }))}
+                          placeholder="4.3517"
+                          theme={theme}
+                          keyboardType="numeric"
+                          bgOverride={theme.border + '50'}
+                        />
+                      </FieldGroup>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 11, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                    💡 GPS coordinates will be auto-resolved from the address when published.
+                  </Text>
+                </View>
+
+                {/* Date / Time / Duration */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <FieldGroup label="Date" theme={theme}>
+                      <RNInput
+                        value={newClass.date}
+                        onChange={v => setNewClass(p => ({ ...p, date: v }))}
+                        placeholder="YYYY-MM-DD"
+                        theme={theme}
+                      />
+                    </FieldGroup>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FieldGroup label="Time" theme={theme}>
+                      <RNInput
+                        value={newClass.time}
+                        onChange={v => setNewClass(p => ({ ...p, time: v }))}
+                        placeholder="HH:MM"
+                        theme={theme}
+                      />
+                    </FieldGroup>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FieldGroup label="Duration (min)" theme={theme}>
+                      <RNInput
+                        value={newClass.duration}
+                        onChange={v => setNewClass(p => ({ ...p, duration: v }))}
+                        placeholder="60"
+                        theme={theme}
+                        keyboardType="numeric"
+                      />
+                    </FieldGroup>
+                  </View>
+                </View>
+
+                {/* Capacity + Price */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <FieldGroup label="Max Capacity" theme={theme}>
+                      <RNInput
+                        value={newClass.capacity}
+                        onChange={v => setNewClass(p => ({ ...p, capacity: v }))}
+                        placeholder="10"
+                        theme={theme}
+                        keyboardType="numeric"
+                      />
+                    </FieldGroup>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FieldGroup label="Base Price (€)" theme={theme}>
+                      <RNInput
+                        value={newClass.basePrice}
+                        onChange={v => setNewClass(p => ({ ...p, basePrice: v }))}
+                        placeholder="30"
+                        theme={theme}
+                        keyboardType="numeric"
+                      />
+                    </FieldGroup>
+                  </View>
+                </View>
+
+                {/* Discounts */}
+                <View style={{ backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 16, gap: 10 }}>
+                  <Text style={{
+                    fontSize: 12, fontWeight: '700', color: theme.green,
+                    textTransform: 'uppercase', letterSpacing: 0.8,
+                    fontFamily: 'DMSans_700Bold',
+                  }}>
+                    🏷️ Discounts
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <FieldGroup label="Student discount (%)" theme={theme}>
+                        <RNInput
+                          value={newClass.discounts.student}
+                          onChange={v => setNewClass(p => ({ ...p, discounts: { ...p.discounts, student: v } }))}
+                          placeholder="20"
+                          theme={theme}
+                          keyboardType="numeric"
+                          bgOverride={theme.border + '50'}
+                        />
+                      </FieldGroup>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <FieldGroup label="Senior / Retired (%)" theme={theme}>
+                        <RNInput
+                          value={newClass.discounts.retired}
+                          onChange={v => setNewClass(p => ({ ...p, discounts: { ...p.discounts, retired: v } }))}
+                          placeholder="30"
+                          theme={theme}
+                          keyboardType="numeric"
+                          bgOverride={theme.border + '50'}
+                        />
+                      </FieldGroup>
+                    </View>
+                  </View>
+                  {newClass.basePrice ? (
+                    <View style={{ flexDirection: 'row', gap: 16 }}>
+                      <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                        {'🎓 Students pay: '}
+                        <Text style={{ color: theme.green, fontFamily: 'DMSans_700Bold' }}>
+                          €{(Number(newClass.basePrice) * (1 - Number(newClass.discounts.student) / 100)).toFixed(2)}
+                        </Text>
+                      </Text>
+                      <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                        {'👴 Seniors pay: '}
+                        <Text style={{ color: theme.green, fontFamily: 'DMSans_700Bold' }}>
+                          €{(Number(newClass.basePrice) * (1 - Number(newClass.discounts.retired) / 100)).toFixed(2)}
+                        </Text>
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {/* Colour picker */}
+                <FieldGroup label="Class Colour" theme={theme}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {colorOptions.map(c => (
+                      <Pressable
+                        key={c}
+                        onPress={() => setNewClass(p => ({ ...p, color: c }))}
+                        style={{
+                          width: 28, height: 28, borderRadius: 14,
+                          backgroundColor: c,
+                          borderWidth: newClass.color === c ? 3 : 0,
+                          borderColor: theme.accent,
+                        }}
+                      />
+                    ))}
+                  </View>
+                </FieldGroup>
+
+                {/* Create button */}
+                <Pressable
+                  onPress={handleCreateClass}
+                  disabled={!canCreate}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                >
+                  <LinearGradient
+                    colors={canCreate ? [theme.accent, '#e06b9a'] : [theme.border, theme.border]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+                  >
+                    <Text style={{
+                      color: canCreate ? '#fff' : theme.muted,
+                      fontWeight: '700', fontSize: 15,
+                      fontFamily: 'DMSans_700Bold',
+                    }}>
+                      Create Class
+                    </Text>
+                  </LinearGradient>
+                </Pressable>
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+    </SafeAreaView>
+  );
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add ClassBookingApp.tsx
+git commit -m "feat: add ClassBookingApp RN component (full conversion from web JSX)"
+```
+
+---
+
+### Task 5: Verify the app runs
+
+**Files:** none
+
+- [ ] **Step 1: Start expo on web**
+
+```bash
+npx expo start --web
+```
+
+Expected: browser opens, purple spinner while fonts load, then the Classe header with student/teacher toggle appears.
+
+- [ ] **Step 2: Verify student view**
+
+- Category filter pills scroll horizontally
+- "I am a:" dropdown opens and closes on tap; selecting "Student" updates card prices with discount labels and strikethrough original prices
+- Cards render in 1 column (narrow) or 2 columns (≥600px wide)
+- Tapping a card opens the class detail modal with gradient bar, info grid, and Google Maps / Apple Maps buttons
+- Tapping "Book now" → booking confirmation modal → "Confirm & Book" → success banner slides in and fades after 3 seconds
+
+- [ ] **Step 3: Verify teacher view**
+
+- Toggle to 🎤 Teacher
+- "New Class" gradient button opens the create-class bottom sheet
+- Fill Title, Teacher, Address, Date → "Create Class" button enables
+- Submit → modal closes, new class appears in the list, success banner fires
+
+- [ ] **Step 4: Verify dark mode**
+
+- Toggle the dark mode switch; thumb slides with spring animation, all surfaces update
+
+- [ ] **Step 5: Commit verification note**
+
+```bash
+git commit --allow-empty -m "chore: manually verified RN conversion on expo web"
+```
+
+---
+
+## Self-Review
+
+**Spec coverage:**
+
+| Spec requirement | Covered in task |
+|---|---|
+| Replace HTML elements with RN equivalents | Task 4 |
+| CSS grid → flexbox with `useWindowDimensions` | Task 4 (cardWidth calculation) |
+| linear-gradient → LinearGradient | Task 4 (header logo, colour bars, buttons) |
+| CSS animations → Animated API | Task 4 (dark toggle spring, banner sequence) |
+| `<a>` → Linking.openURL | Task 4 (Google Maps + Apple Maps buttons) |
+| `<select>` → CustomDropdown | Task 2, Task 4 (profile selector + category picker) |
+| App.tsx font loading | Task 3 |
+| Student view (hero, filters, cards, booking) | Task 4 |
+| Teacher view (stats, list, create modal) | Task 4 |
+| Dark mode | Task 4 |
+| Discount pricing | Task 4 (getDiscountedPrice, getDiscountLabel) |
+| Class detail modal | Task 4 |
+| Booking confirmation modal | Task 4 |
+| Create class modal | Task 4 |
+| Category filters | Task 4 |
+
+**Placeholder scan:** None found — all steps contain complete code.
+
+**Type consistency:**
+- `ClassItem` defined once, used throughout Task 4
+- `NewClassForm` uses `string` fields for all numeric inputs (correct — TextInput always yields strings)
+- `Theme` type alias derived from `useTheme` return type — used in `FieldGroup` and `RNInput` props
+- `CustomDropdown` props in Task 2 match call sites in Task 4 exactly: `value`, `options`, `onChange`, `border`, `surfaceAlt`, `surface`, `text`, `muted`
