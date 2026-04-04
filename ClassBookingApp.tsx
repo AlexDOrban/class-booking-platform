@@ -237,6 +237,13 @@ export default function ClassBookingApp() {
   const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
   const [createHasRoles, setCreateHasRoles] = useState(false);
   const [expandedTeacherClassId, setExpandedTeacherClassId] = useState<number | null>(null);
+  const [bookingFlowStep, setBookingFlowStep] = useState<'type' | 'solo' | 'pair'>('type');
+  const [soloName, setSoloName] = useState('');
+  const [soloRole, setSoloRole] = useState('');
+  const [pairMyName, setPairMyName] = useState('');
+  const [pairMyRole, setPairMyRole] = useState('');
+  const [pairPartnerName, setPairPartnerName] = useState('');
+  const [pairPartnerRole, setPairPartnerRole] = useState('');
 
   const theme = useTheme(dark);
   const { width, height: screenHeight } = useWindowDimensions();
@@ -291,6 +298,16 @@ export default function ClassBookingApp() {
       Animated.timing(bannerOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
     ]);
     bannerAnimRef.current.start(() => setSuccessMsg(''));
+  };
+
+  const resetBookingFlow = () => {
+    setBookingFlowStep('type');
+    setSoloName('');
+    setSoloRole('');
+    setPairMyName('');
+    setPairMyRole('');
+    setPairPartnerName('');
+    setPairPartnerRole('');
   };
 
   const handleBook = (cls: ClassItem, bookingData: Omit<Booking, 'pricePaid'>) => {
@@ -1633,20 +1650,24 @@ export default function ClassBookingApp() {
         visible={!!bookingModal}
         animationType="fade"
         transparent
-        onRequestClose={() => setBookingModal(null)}
+        onRequestClose={() => { setBookingModal(null); resetBookingFlow(); }}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setBookingModal(null)} />
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => { setBookingModal(null); resetBookingFlow(); }}
+          />
           <View style={{ flex: 1, justifyContent: 'center', padding: 16 }} pointerEvents="box-none">
             <View style={{
-              backgroundColor: theme.surface, borderRadius: 20, padding: 28,
+              backgroundColor: theme.surface, borderRadius: 20, padding: 24,
               borderWidth: 1, borderColor: theme.border,
               maxWidth: 400, alignSelf: 'center', width: '100%',
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 24 },
               shadowOpacity: 0.4, shadowRadius: 40, elevation: 20,
             }}>
-              {bookingModal && (
+              {bookingModal && bookingModal.roles.length === 0 && (
+                /* ── NON-ROLE CLASS: unchanged simple confirmation ── */
                 <>
                   <Text style={{ fontSize: 46, textAlign: 'center', marginBottom: 14 }}>🎟️</Text>
                   <Text style={{
@@ -1693,7 +1714,7 @@ export default function ClassBookingApp() {
                   </View>
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <Pressable
-                      onPress={() => setBookingModal(null)}
+                      onPress={() => { setBookingModal(null); resetBookingFlow(); }}
                       style={({ pressed }) => ({
                         flex: 1, paddingVertical: 12, borderRadius: 10,
                         borderWidth: 1, borderColor: theme.border,
@@ -1706,15 +1727,16 @@ export default function ClassBookingApp() {
                       </Text>
                     </Pressable>
                     <Pressable
-                      onPress={() => handleBook(bookingModal, {})}
+                      onPress={() => {
+                        handleBook(bookingModal, {});
+                        resetBookingFlow();
+                      }}
                       style={({ pressed }) => ({ flex: 2, opacity: pressed ? 0.85 : 1 })}
                     >
                       <LinearGradient
                         colors={[theme.accent, '#e06b9a']}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                        style={{
-                          paddingVertical: 12, borderRadius: 10, alignItems: 'center',
-                        }}
+                        style={{ paddingVertical: 12, borderRadius: 10, alignItems: 'center' }}
                       >
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: 'DMSans_700Bold' }}>
                           Confirm & Book
@@ -1722,6 +1744,264 @@ export default function ClassBookingApp() {
                       </LinearGradient>
                     </Pressable>
                   </View>
+                </>
+              )}
+
+              {bookingModal && bookingModal.roles.length > 0 && (
+                /* ── ROLE CLASS: 2-step flow ── */
+                <>
+                  {/* Sub-header */}
+                  <View style={{ marginBottom: 16 }}>
+                    {bookingFlowStep !== 'type' && (
+                      <Pressable onPress={() => setBookingFlowStep('type')} style={{ marginBottom: 6 }}>
+                        <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: theme.muted }}>
+                          ← {bookingFlowStep === 'solo' ? 'Solo booking' : 'Pair booking'}
+                        </Text>
+                      </Pressable>
+                    )}
+                    <Text style={{
+                      fontFamily: 'DMSans_700Bold',
+                      fontSize: 18, color: theme.text,
+                    }}>
+                      {bookingFlowStep === 'type'
+                        ? 'How are you booking?'
+                        : bookingFlowStep === 'solo'
+                          ? 'Pick your role'
+                          : 'Book as a pair'}
+                    </Text>
+                    <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: theme.muted, marginTop: 2 }}>
+                      {bookingModal.title} · {new Date(bookingModal.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {bookingModal.time}
+                    </Text>
+                  </View>
+
+                  {/* Step 1: Solo or Pair */}
+                  {bookingFlowStep === 'type' && (
+                    <View style={{ gap: 10 }}>
+                      <Pressable
+                        onPress={() => setBookingFlowStep('solo')}
+                        style={{
+                          borderWidth: 1.5, borderColor: theme.accent,
+                          borderRadius: 10, padding: 14,
+                          backgroundColor: theme.accent + '10',
+                        }}
+                      >
+                        <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 13, color: theme.accentLight }}>
+                          👤 Solo — I'll be paired automatically
+                        </Text>
+                        <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: theme.muted, marginTop: 3 }}>
+                          Pick a role, get matched with the next available partner
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setBookingFlowStep('pair')}
+                        style={{
+                          borderWidth: 1, borderColor: theme.border,
+                          borderRadius: 10, padding: 14,
+                        }}
+                      >
+                        <Text style={{ fontFamily: 'DMSans_700Bold', fontSize: 13, color: theme.text }}>
+                          👥 Pair — I'm coming with a partner
+                        </Text>
+                        <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: theme.muted, marginTop: 3 }}>
+                          Book both roles at once, guaranteed together
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => { setBookingModal(null); resetBookingFlow(); }}
+                        style={({ pressed }) => ({
+                          paddingVertical: 10, borderRadius: 10,
+                          borderWidth: 1, borderColor: theme.border,
+                          alignItems: 'center',
+                          backgroundColor: pressed ? theme.surfaceAlt : 'transparent',
+                          marginTop: 4,
+                        })}
+                      >
+                        <Text style={{ color: theme.muted, fontFamily: 'DMSans_400Regular', fontSize: 13 }}>
+                          Cancel
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {/* Step 2a: Solo — name + role */}
+                  {bookingFlowStep === 'solo' && (
+                    <View style={{ gap: 12 }}>
+                      <FieldGroup label="Your Name" theme={theme}>
+                        <RNInput
+                          value={soloName}
+                          onChange={setSoloName}
+                          placeholder="e.g. Maria"
+                          theme={theme}
+                        />
+                      </FieldGroup>
+
+                      <View>
+                        <Text style={{
+                          fontFamily: 'DMSans_700Bold',
+                          fontSize: 11, color: theme.muted,
+                          textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8,
+                        }}>
+                          SELECT YOUR ROLE
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          {bookingModal.roles.map(role => {
+                            const enrolled = bookingModal.roleEnrollments[role.name] || 0;
+                            const remaining = role.capacity - enrolled;
+                            const isFull = remaining <= 0;
+                            const isSelected = soloRole === role.name;
+                            return (
+                              <Pressable
+                                key={role.name}
+                                onPress={() => !isFull && setSoloRole(role.name)}
+                                style={{
+                                  flex: 1,
+                                  borderWidth: isSelected ? 1.5 : 1,
+                                  borderColor: isSelected ? theme.accent : theme.border,
+                                  borderRadius: 10, padding: 12,
+                                  backgroundColor: isSelected ? theme.accent + '18' : isFull ? theme.surfaceAlt : 'transparent',
+                                  alignItems: 'center',
+                                  opacity: isFull ? 0.5 : 1,
+                                }}
+                              >
+                                <Text style={{
+                                  fontFamily: 'DMSans_700Bold',
+                                  fontSize: 14,
+                                  color: isSelected ? theme.accentLight : isFull ? theme.muted : theme.text,
+                                }}>
+                                  {role.name}
+                                </Text>
+                                <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 10, color: theme.muted, marginTop: 2 }}>
+                                  {isFull ? 'Full' : `${remaining} left`}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+
+                      <Pressable
+                        onPress={() => {
+                          if (!soloName.trim() || !soloRole) return;
+                          handleSoloBook(bookingModal, soloName.trim(), soloRole);
+                          resetBookingFlow();
+                        }}
+                        disabled={!soloName.trim() || !soloRole}
+                        style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                      >
+                        <LinearGradient
+                          colors={soloName.trim() && soloRole ? [theme.accent, '#e06b9a'] : [theme.border, theme.border]}
+                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                          style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center' }}
+                        >
+                          <Text style={{
+                            color: soloName.trim() && soloRole ? '#fff' : theme.muted,
+                            fontFamily: 'DMSans_700Bold', fontWeight: '700', fontSize: 14,
+                          }}>
+                            {soloRole
+                              ? `Confirm ${soloRole} · €${getDiscountedPrice(bookingModal)}`
+                              : 'Select a role'}
+                          </Text>
+                        </LinearGradient>
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {/* Step 2b: Pair — names + roles */}
+                  {bookingFlowStep === 'pair' && (
+                    <View style={{ gap: 12 }}>
+                      {/* My name + role */}
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View style={{ flex: 2 }}>
+                          <FieldGroup label="Your Name" theme={theme}>
+                            <RNInput
+                              value={pairMyName}
+                              onChange={setPairMyName}
+                              placeholder="Your name"
+                              theme={theme}
+                            />
+                          </FieldGroup>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <FieldGroup label="Your Role" theme={theme}>
+                            <CustomDropdown
+                              value={pairMyRole}
+                              options={bookingModal.roles.map(r => ({ label: r.name, value: r.name }))}
+                              onChange={setPairMyRole}
+                              border={theme.border}
+                              surfaceAlt={theme.surfaceAlt}
+                              surface={theme.surface}
+                              text={theme.text}
+                              muted={theme.muted}
+                            />
+                          </FieldGroup>
+                        </View>
+                      </View>
+
+                      {/* Partner name + role */}
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View style={{ flex: 2 }}>
+                          <FieldGroup label="Partner's Name" theme={theme}>
+                            <RNInput
+                              value={pairPartnerName}
+                              onChange={setPairPartnerName}
+                              placeholder="Partner's name"
+                              theme={theme}
+                            />
+                          </FieldGroup>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <FieldGroup label="Their Role" theme={theme}>
+                            <CustomDropdown
+                              value={pairPartnerRole}
+                              options={bookingModal.roles
+                                .filter(r => r.name !== pairMyRole)
+                                .map(r => ({ label: r.name, value: r.name }))}
+                              onChange={setPairPartnerRole}
+                              border={theme.border}
+                              surfaceAlt={theme.surfaceAlt}
+                              surface={theme.surface}
+                              text={theme.text}
+                              muted={theme.muted}
+                            />
+                          </FieldGroup>
+                        </View>
+                      </View>
+
+                      {pairMyRole && pairMyRole === pairPartnerRole && (
+                        <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: '#e05050' }}>
+                          Both roles must be different.
+                        </Text>
+                      )}
+
+                      <Pressable
+                        onPress={() => {
+                          if (!pairMyName.trim() || !pairPartnerName.trim() || !pairMyRole || !pairPartnerRole || pairMyRole === pairPartnerRole) return;
+                          handlePairBook(bookingModal, pairMyName.trim(), pairMyRole, pairPartnerName.trim(), pairPartnerRole);
+                          resetBookingFlow();
+                        }}
+                        disabled={!pairMyName.trim() || !pairPartnerName.trim() || !pairMyRole || !pairPartnerRole || pairMyRole === pairPartnerRole}
+                        style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                      >
+                        <LinearGradient
+                          colors={
+                            pairMyName.trim() && pairPartnerName.trim() && pairMyRole && pairPartnerRole && pairMyRole !== pairPartnerRole
+                              ? [theme.accent, '#e06b9a']
+                              : [theme.border, theme.border]
+                          }
+                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                          style={{ paddingVertical: 13, borderRadius: 10, alignItems: 'center' }}
+                        >
+                          <Text style={{
+                            color: pairMyName.trim() && pairPartnerName.trim() && pairMyRole && pairPartnerRole && pairMyRole !== pairPartnerRole
+                              ? '#fff' : theme.muted,
+                            fontFamily: 'DMSans_700Bold', fontWeight: '700', fontSize: 14,
+                          }}>
+                            Book as Pair · €{getDiscountedPrice(bookingModal)}
+                          </Text>
+                        </LinearGradient>
+                      </Pressable>
+                    </View>
+                  )}
                 </>
               )}
             </View>
