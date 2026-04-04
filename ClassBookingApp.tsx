@@ -479,226 +479,226 @@ export default function ClassBookingApp() {
             {studentTab === 'browse' && (
               <>
                 {/* Hero */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{
-                fontFamily: 'CormorantGaramond_600SemiBold',
-                fontSize: width >= 600 ? 48 : 32,
-                lineHeight: width >= 600 ? 54 : 38,
-                color: theme.text, marginBottom: 10,
-              }}>
-                {'Discover & Book\n'}
-                <Text style={{
-                  color: theme.accentLight,
-                  fontFamily: 'CormorantGaramond_600SemiBold_Italic',
-                }}>
-                  exceptional classes
-                </Text>
-              </Text>
-              <Text style={{
-                color: theme.muted, fontSize: 15,
-                fontFamily: 'DMSans_400Regular',
-              }}>
-                Learn from passionate teachers across Brussels and beyond.
-              </Text>
-            </View>
-
-            {/* Category filter pills */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 12 }}
-              contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
-            >
-              {categories.map(cat => (
-                <Pressable
-                  key={cat}
-                  onPress={() => setFilterCategory(cat)}
-                  style={{
-                    paddingHorizontal: 14, paddingVertical: 6,
-                    borderRadius: 20, borderWidth: 1, borderColor: theme.border,
-                    backgroundColor: filterCategory === cat ? theme.accent : theme.surfaceAlt,
-                  }}
-                >
+                <View style={{ marginBottom: 24 }}>
                   <Text style={{
-                    color: filterCategory === cat ? '#fff' : theme.text,
-                    fontWeight: '500', fontSize: 13,
-                    fontFamily: 'DMSans_500Medium',
+                    fontFamily: 'CormorantGaramond_600SemiBold',
+                    fontSize: width >= 600 ? 48 : 32,
+                    lineHeight: width >= 600 ? 54 : 38,
+                    color: theme.text, marginBottom: 10,
                   }}>
-                    {cat}
+                    {'Discover & Book\n'}
+                    <Text style={{
+                      color: theme.accentLight,
+                      fontFamily: 'CormorantGaramond_600SemiBold_Italic',
+                    }}>
+                      exceptional classes
+                    </Text>
                   </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+                  <Text style={{
+                    color: theme.muted, fontSize: 15,
+                    fontFamily: 'DMSans_400Regular',
+                  }}>
+                    Learn from passionate teachers across Brussels and beyond.
+                  </Text>
+                </View>
 
-            {/* Profile type selector */}
-            <View style={{
-              flexDirection: 'row', alignItems: 'center',
-              gap: 10, marginBottom: 20,
-            }}>
-              <Text style={{
-                color: theme.muted, fontSize: 13,
-                fontFamily: 'DMSans_400Regular',
-              }}>
-                I am a:
-              </Text>
-              <View style={{ flex: 1, maxWidth: 220 }}>
-                <CustomDropdown
-                  value={profileType}
-                  options={profileOptions}
-                  onChange={v => setProfileType(v as 'standard' | 'student' | 'retired')}
-                  border={theme.border}
-                  surfaceAlt={theme.surfaceAlt}
-                  surface={theme.surface}
-                  text={theme.text}
-                  muted={theme.muted}
-                />
-              </View>
-            </View>
+                {/* Category filter pills */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginBottom: 12 }}
+                  contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                >
+                  {categories.map(cat => (
+                    <Pressable
+                      key={cat}
+                      onPress={() => setFilterCategory(cat)}
+                      style={{
+                        paddingHorizontal: 14, paddingVertical: 6,
+                        borderRadius: 20, borderWidth: 1, borderColor: theme.border,
+                        backgroundColor: filterCategory === cat ? theme.accent : theme.surfaceAlt,
+                      }}
+                    >
+                      <Text style={{
+                        color: filterCategory === cat ? '#fff' : theme.text,
+                        fontWeight: '500', fontSize: 13,
+                        fontFamily: 'DMSans_500Medium',
+                      }}>
+                        {cat}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
 
-            {/* Class cards grid */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-              {filteredClasses.map(cls => {
-                const full = cls.enrolled >= cls.capacity;
-                const discLabel = getDiscountLabel(cls);
-                return (
-                  <Pressable
-                    key={cls.id}
-                    onPress={() => setSelected(cls)}
-                    style={({ pressed }) => ({
-                      width: cardWidth,
-                      backgroundColor: theme.surface,
-                      borderRadius: 16, borderWidth: 1, borderColor: theme.border,
-                      overflow: 'hidden',
-                      opacity: pressed ? 0.93 : 1,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: dark ? 0.3 : 0.07,
-                      shadowRadius: 12, elevation: 4,
-                    })}
-                  >
-                    {/* Colour bar */}
-                    <LinearGradient
-                      colors={[cls.color, cls.color + '88']}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                      style={{ height: 8 }}
+                {/* Profile type selector */}
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  gap: 10, marginBottom: 20,
+                }}>
+                  <Text style={{
+                    color: theme.muted, fontSize: 13,
+                    fontFamily: 'DMSans_400Regular',
+                  }}>
+                    I am a:
+                  </Text>
+                  <View style={{ flex: 1, maxWidth: 220 }}>
+                    <CustomDropdown
+                      value={profileType}
+                      options={profileOptions}
+                      onChange={v => setProfileType(v as 'standard' | 'student' | 'retired')}
+                      border={theme.border}
+                      surfaceAlt={theme.surfaceAlt}
+                      surface={theme.surface}
+                      text={theme.text}
+                      muted={theme.muted}
                     />
-                    <View style={{ padding: 18 }}>
-                      {/* Category + Full badge */}
-                      <View style={{
-                        flexDirection: 'row', justifyContent: 'space-between',
-                        marginBottom: 8,
-                      }}>
-                        <View style={{
-                          backgroundColor: theme.accentLight + '18',
-                          paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5,
-                        }}>
-                          <Text style={{
-                            fontSize: 11, fontWeight: '700', letterSpacing: 1,
-                            color: theme.accentLight, textTransform: 'uppercase',
-                            fontFamily: 'DMSans_700Bold',
-                          }}>
-                            {cls.category}
-                          </Text>
-                        </View>
-                        {full && (
+                  </View>
+                </View>
+
+                {/* Class cards grid */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+                  {filteredClasses.map(cls => {
+                    const full = cls.enrolled >= cls.capacity;
+                    const discLabel = getDiscountLabel(cls);
+                    return (
+                      <Pressable
+                        key={cls.id}
+                        onPress={() => setSelected(cls)}
+                        style={({ pressed }) => ({
+                          width: cardWidth,
+                          backgroundColor: theme.surface,
+                          borderRadius: 16, borderWidth: 1, borderColor: theme.border,
+                          overflow: 'hidden',
+                          opacity: pressed ? 0.93 : 1,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: dark ? 0.3 : 0.07,
+                          shadowRadius: 12, elevation: 4,
+                        })}
+                      >
+                        {/* Colour bar */}
+                        <LinearGradient
+                          colors={[cls.color, cls.color + '88']}
+                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                          style={{ height: 8 }}
+                        />
+                        <View style={{ padding: 18 }}>
+                          {/* Category + Full badge */}
                           <View style={{
-                            backgroundColor: '#e0505018',
-                            paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5,
+                            flexDirection: 'row', justifyContent: 'space-between',
+                            marginBottom: 8,
                           }}>
-                            <Text style={{ fontSize: 11, color: '#e05050', fontWeight: '700', fontFamily: 'DMSans_700Bold' }}>
-                              FULL
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <Text style={{
-                        fontSize: 18, fontWeight: '600', color: theme.text,
-                        lineHeight: 24, marginBottom: 3,
-                        fontFamily: 'DMSans_600SemiBold',
-                      }}>
-                        {cls.title}
-                      </Text>
-                      <Text style={{
-                        fontSize: 13, color: theme.muted,
-                        marginBottom: 10, fontFamily: 'DMSans_400Regular',
-                      }}>
-                        with {cls.teacher}
-                      </Text>
-                      <Text style={{
-                        fontSize: 14, color: theme.muted,
-                        lineHeight: 21, marginBottom: 12,
-                        fontFamily: 'DMSans_400Regular',
-                      }}>
-                        {cls.description}
-                      </Text>
-
-                      {/* Meta row */}
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                        <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
-                          📅 {new Date(cls.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {cls.time}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
-                          ⏱ {cls.duration}min
-                        </Text>
-                        <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
-                          👥 {cls.enrolled}/{cls.capacity}
-                        </Text>
-                      </View>
-
-                      {/* Price + Book button */}
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View>
-                          <Text style={{
-                            fontSize: 20, fontWeight: '700', color: theme.accentLight,
-                            fontFamily: 'DMSans_700Bold',
-                          }}>
-                            €{getDiscountedPrice(cls)}
-                          </Text>
-                          {discLabel && (
                             <View style={{
-                              backgroundColor: theme.green + '18',
-                              paddingHorizontal: 7, paddingVertical: 2,
-                              borderRadius: 5, marginTop: 2,
+                              backgroundColor: theme.accentLight + '18',
+                              paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5,
                             }}>
-                              <Text style={{ fontSize: 11, color: theme.green, fontWeight: '700', fontFamily: 'DMSans_700Bold' }}>
-                                {discLabel}
+                              <Text style={{
+                                fontSize: 11, fontWeight: '700', letterSpacing: 1,
+                                color: theme.accentLight, textTransform: 'uppercase',
+                                fontFamily: 'DMSans_700Bold',
+                              }}>
+                                {cls.category}
                               </Text>
                             </View>
-                          )}
-                          {profileType !== 'standard' && (
-                            <Text style={{
-                              fontSize: 11, color: theme.muted,
-                              textDecorationLine: 'line-through', marginTop: 2,
-                              fontFamily: 'DMSans_400Regular',
-                            }}>
-                              €{cls.basePrice.toFixed(2)}
-                            </Text>
-                          )}
-                        </View>
-                        <Pressable
-                          onPress={() => { if (!full) setBookingModal(cls); }}
-                          disabled={full}
-                          style={({ pressed }) => ({
-                            paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9,
-                            backgroundColor: full ? theme.border : theme.accent,
-                            opacity: pressed && !full ? 0.85 : 1,
-                          })}
-                        >
+                            {full && (
+                              <View style={{
+                                backgroundColor: '#e0505018',
+                                paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5,
+                              }}>
+                                <Text style={{ fontSize: 11, color: '#e05050', fontWeight: '700', fontFamily: 'DMSans_700Bold' }}>
+                                  FULL
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+
                           <Text style={{
-                            color: full ? theme.muted : '#fff',
-                            fontWeight: '600', fontSize: 13,
+                            fontSize: 18, fontWeight: '600', color: theme.text,
+                            lineHeight: 24, marginBottom: 3,
                             fontFamily: 'DMSans_600SemiBold',
                           }}>
-                            {full ? 'Full' : 'Book now'}
+                            {cls.title}
                           </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
+                          <Text style={{
+                            fontSize: 13, color: theme.muted,
+                            marginBottom: 10, fontFamily: 'DMSans_400Regular',
+                          }}>
+                            with {cls.teacher}
+                          </Text>
+                          <Text style={{
+                            fontSize: 14, color: theme.muted,
+                            lineHeight: 21, marginBottom: 12,
+                            fontFamily: 'DMSans_400Regular',
+                          }}>
+                            {cls.description}
+                          </Text>
+
+                          {/* Meta row */}
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                            <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                              📅 {new Date(cls.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {cls.time}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                              ⏱ {cls.duration}min
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
+                              👥 {cls.enrolled}/{cls.capacity}
+                            </Text>
+                          </View>
+
+                          {/* Price + Book button */}
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View>
+                              <Text style={{
+                                fontSize: 20, fontWeight: '700', color: theme.accentLight,
+                                fontFamily: 'DMSans_700Bold',
+                              }}>
+                                €{getDiscountedPrice(cls)}
+                              </Text>
+                              {discLabel && (
+                                <View style={{
+                                  backgroundColor: theme.green + '18',
+                                  paddingHorizontal: 7, paddingVertical: 2,
+                                  borderRadius: 5, marginTop: 2,
+                                }}>
+                                  <Text style={{ fontSize: 11, color: theme.green, fontWeight: '700', fontFamily: 'DMSans_700Bold' }}>
+                                    {discLabel}
+                                  </Text>
+                                </View>
+                              )}
+                              {profileType !== 'standard' && (
+                                <Text style={{
+                                  fontSize: 11, color: theme.muted,
+                                  textDecorationLine: 'line-through', marginTop: 2,
+                                  fontFamily: 'DMSans_400Regular',
+                                }}>
+                                  €{cls.basePrice.toFixed(2)}
+                                </Text>
+                              )}
+                            </View>
+                            <Pressable
+                              onPress={() => { if (!full) setBookingModal(cls); }}
+                              disabled={full}
+                              style={({ pressed }) => ({
+                                paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9,
+                                backgroundColor: full ? theme.border : theme.accent,
+                                opacity: pressed && !full ? 0.85 : 1,
+                              })}
+                            >
+                              <Text style={{
+                                color: full ? theme.muted : '#fff',
+                                fontWeight: '600', fontSize: 13,
+                                fontFamily: 'DMSans_600SemiBold',
+                              }}>
+                                {full ? 'Full' : 'Book now'}
+                              </Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </>
             )}
           </>
