@@ -677,20 +677,20 @@ export default function ClassBookingApp() {
                               )}
                             </View>
                             <Pressable
-                              onPress={() => { if (!full) setBookingModal(cls); }}
-                              disabled={full}
+                              onPress={() => { if (!full && !bookedIds.has(cls.id)) setBookingModal(cls); }}
+                              disabled={full || bookedIds.has(cls.id)}
                               style={({ pressed }) => ({
                                 paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9,
-                                backgroundColor: full ? theme.border : theme.accent,
-                                opacity: pressed && !full ? 0.85 : 1,
+                                backgroundColor: full || bookedIds.has(cls.id) ? theme.border : theme.accent,
+                                opacity: pressed && !full && !bookedIds.has(cls.id) ? 0.85 : 1,
                               })}
                             >
                               <Text style={{
-                                color: full ? theme.muted : '#fff',
+                                color: full || bookedIds.has(cls.id) ? theme.muted : '#fff',
                                 fontWeight: '600', fontSize: 13,
                                 fontFamily: 'DMSans_600SemiBold',
                               }}>
-                                {full ? 'Full' : 'Book now'}
+                                {full ? 'Full' : bookedIds.has(cls.id) ? 'Booked ✓' : 'Book now'}
                               </Text>
                             </Pressable>
                           </View>
@@ -1207,13 +1207,18 @@ export default function ClassBookingApp() {
                     {/* Book button (student view only) */}
                     {view === 'student' && (
                       <Pressable
-                        onPress={() => { setBookingModal(selected); setSelected(null); }}
-                        disabled={selected.enrolled >= selected.capacity}
+                        onPress={() => {
+                          if (selected.enrolled < selected.capacity && !bookedIds.has(selected.id)) {
+                            setBookingModal(selected);
+                            setSelected(null);
+                          }
+                        }}
+                        disabled={selected.enrolled >= selected.capacity || bookedIds.has(selected.id)}
                         style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
                       >
                         <LinearGradient
                           colors={
-                            selected.enrolled >= selected.capacity
+                            selected.enrolled >= selected.capacity || bookedIds.has(selected.id)
                               ? [theme.border, theme.border]
                               : [theme.accent, '#e06b9a']
                           }
@@ -1221,13 +1226,15 @@ export default function ClassBookingApp() {
                           style={{ paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
                         >
                           <Text style={{
-                            color: selected.enrolled >= selected.capacity ? theme.muted : '#fff',
+                            color: selected.enrolled >= selected.capacity || bookedIds.has(selected.id) ? theme.muted : '#fff',
                             fontWeight: '700', fontSize: 16,
                             fontFamily: 'DMSans_700Bold',
                           }}>
                             {selected.enrolled >= selected.capacity
                               ? 'Class is full'
-                              : `Book for €${getDiscountedPrice(selected)}`}
+                              : bookedIds.has(selected.id)
+                                ? 'Already booked ✓'
+                                : `Book for €${getDiscountedPrice(selected)}`}
                           </Text>
                         </LinearGradient>
                       </Pressable>
