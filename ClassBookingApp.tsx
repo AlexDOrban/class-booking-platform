@@ -236,6 +236,7 @@ export default function ClassBookingApp() {
   const [studentTab, setStudentTab] = useState<'browse' | 'bookings'>('browse');
   const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
   const [createHasRoles, setCreateHasRoles] = useState(false);
+  const [expandedTeacherClassId, setExpandedTeacherClassId] = useState<number | null>(null);
 
   const theme = useTheme(dark);
   const { width, height: screenHeight } = useWindowDimensions();
@@ -1139,73 +1140,298 @@ export default function ClassBookingApp() {
             </View>
 
             {/* Classes list */}
-            <View style={{
-              backgroundColor: theme.surface,
-              borderRadius: 16, borderWidth: 1, borderColor: theme.border,
-              overflow: 'hidden',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: dark ? 0.25 : 0.06,
-              shadowRadius: 12, elevation: 4,
-            }}>
-              {classes.map((cls, i) => (
-                <View key={cls.id} style={{
-                  flexDirection: 'row', flexWrap: 'wrap',
-                  alignItems: 'center', gap: 10,
-                  paddingHorizontal: 20, paddingVertical: 16,
-                  borderBottomWidth: i < classes.length - 1 ? 1 : 0,
-                  borderBottomColor: theme.border,
-                  backgroundColor: i % 2 === 1 ? theme.surfaceAlt + '80' : 'transparent',
-                }}>
-                  <View style={{
-                    width: 8, height: 8, borderRadius: 4,
-                    backgroundColor: cls.color,
-                  }} />
-                  <View style={{ flex: 1, minWidth: 130 }}>
-                    <Text style={{ fontWeight: '600', fontSize: 14, color: theme.text, fontFamily: 'DMSans_600SemiBold' }}>
-                      {cls.title}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
-                      {cls.category} · {cls.date} {cls.time}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 12, color: theme.muted, flex: 1, minWidth: 90, fontFamily: 'DMSans_400Regular' }}>
-                    📍 {cls.address.slice(0, 26)}…
-                  </Text>
-                  {/* Fill bar */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={{
-                      width: 72, height: 6, borderRadius: 3,
-                      backgroundColor: theme.border, overflow: 'hidden',
-                    }}>
-                      <View style={{
-                        width: (cls.enrolled / cls.capacity) * 72,
-                        height: 6,
-                        backgroundColor: cls.enrolled >= cls.capacity ? '#e05050' : theme.green,
-                        borderRadius: 3,
-                      }} />
-                    </View>
-                    <Text style={{ fontSize: 11, color: theme.muted, fontFamily: 'DMSans_400Regular' }}>
-                      {cls.enrolled}/{cls.capacity}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: theme.accentLight, minWidth: 44, textAlign: 'right', fontFamily: 'DMSans_700Bold' }}>
-                    €{cls.basePrice}
-                  </Text>
-                  <Pressable
-                    onPress={() => setSelected(cls)}
-                    style={({ pressed }) => ({
-                      paddingHorizontal: 12, paddingVertical: 6,
-                      borderRadius: 8, borderWidth: 1, borderColor: theme.border,
-                      backgroundColor: pressed ? theme.surfaceAlt : 'transparent',
-                    })}
+            <View style={{ gap: 10 }}>
+              {classes.map(cls => {
+                const isExpanded = expandedTeacherClassId === cls.id;
+                const hasRoles = cls.roles.length > 0;
+
+                // Compute 48h countdown (UI only, no push)
+                const classDateTime = new Date(`${cls.date}T${cls.time}`);
+                const cutoff = new Date(classDateTime.getTime() - 48 * 60 * 60 * 1000);
+                const msUntilCutoff = cutoff.getTime() - Date.now();
+                const pairsShort = hasRoles && cls.minPairs > 0 && cls.pairs.length < cls.minPairs;
+                const countdownHours = msUntilCutoff > 0 ? Math.floor(msUntilCutoff / 3600000) : 0;
+                const showWarning = pairsShort && msUntilCutoff > 0;
+
+                return (
+                  <View
+                    key={cls.id}
+                    style={{
+                      backgroundColor: theme.surface,
+                      borderRadius: 14,
+                      borderWidth: 1.5,
+                      borderColor: showWarning ? '#e05050' : isExpanded ? theme.accent : theme.border,
+                      overflow: 'hidden',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: dark ? 0.2 : 0.05,
+                      shadowRadius: 6, elevation: 2,
+                    }}
                   >
-                    <Text style={{ fontSize: 12, color: theme.text, fontWeight: '500', fontFamily: 'DMSans_500Medium' }}>
-                      View details
-                    </Text>
-                  </Pressable>
-                </View>
-              ))}
+                    {/* Colour bar */}
+                    <View style={{ height: 4, backgroundColor: cls.color }} />
+
+                    {/* Collapsed header — always visible */}
+                    <Pressable
+                      onPress={() => setExpandedTeacherClassId(isExpanded ? null : cls.id)}
+                      style={{ padding: 14, gap: 8 }}
+                    >
+                      {/* Title row */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                          <Text style={{
+                            fontFamily: 'DMSans_600SemiBold',
+                            fontSize: 14, color: theme.text,
+                          }}>
+                            {cls.title}
+                          </Text>
+                          <Text style={{
+                            fontFamily: 'DMSans_400Regular',
+                            fontSize: 11, color: theme.muted, marginTop: 1,
+                          }}>
+                            {cls.date} · {cls.time} · {cls.duration}min
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                          {hasRoles ? (
+                            <View style={{
+                              backgroundColor: pairsShort ? '#fff0f0' : '#d4f0e0',
+                              borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
+                            }}>
+                              <Text style={{
+                                fontFamily: 'DMSans_700Bold',
+                                fontSize: 11,
+                                color: pairsShort ? '#e05050' : '#2d8a5e',
+                              }}>
+                                {pairsShort ? `⚠️ ${cls.pairs.length}/${cls.minPairs} pairs` : `${cls.pairs.length}/${cls.minPairs} pairs ✓`}
+                              </Text>
+                            </View>
+                          ) : (
+                            <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: theme.muted }}>
+                              {`👥 ${cls.enrolled}/${cls.capacity}`}
+                            </Text>
+                          )}
+                          <Text style={{ color: theme.accent, fontSize: 14 }}>{isExpanded ? '∨' : '›'}</Text>
+                        </View>
+                      </View>
+
+                      {/* Role chips (collapsed view) */}
+                      {!isExpanded && hasRoles && (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+                          {cls.pairs.map((pair, idx) => (
+                            <View
+                              key={idx}
+                              style={{
+                                backgroundColor: '#d4f0e0',
+                                borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
+                              }}
+                            >
+                              <Text style={{
+                                fontFamily: 'DMSans_600SemiBold',
+                                fontSize: 10, color: '#1a5e3a',
+                              }}>
+                                {pair.role1} + {pair.role2}{pair.isPreformed ? ' ★' : ''}
+                              </Text>
+                            </View>
+                          ))}
+                          {cls.waitingList.map((w, idx) => (
+                            <View
+                              key={`w-${idx}`}
+                              style={{
+                                backgroundColor: pairsShort ? '#fff0f0' : '#fff8ec',
+                                borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
+                                borderWidth: 1,
+                                borderColor: pairsShort ? '#f4c0cc' : '#f4c9a5',
+                              }}
+                            >
+                              <Text style={{
+                                fontFamily: 'DMSans_600SemiBold',
+                                fontSize: 10,
+                                color: pairsShort ? '#e05050' : '#7c5050',
+                              }}>
+                                {w.role} ⏳
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Non-role class chip */}
+                      {!isExpanded && !hasRoles && (
+                        <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 11, color: theme.muted }}>
+                          {`👥 ${cls.enrolled}/${cls.capacity} enrolled${cls.minPairs > 0 ? ` · min ${cls.minPairs}` : ''}`}
+                        </Text>
+                      )}
+
+                      {/* 48h warning */}
+                      {showWarning && (
+                        <View style={{
+                          backgroundColor: '#fff0f0',
+                          borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
+                          alignSelf: 'flex-start',
+                        }}>
+                          <Text style={{
+                            fontFamily: 'DMSans_600SemiBold',
+                            fontSize: 11, color: '#e05050',
+                          }}>
+                            ⏰ Cancels in {countdownHours}h if no change
+                          </Text>
+                        </View>
+                      )}
+                    </Pressable>
+
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <View style={{
+                        borderTopWidth: 1, borderTopColor: theme.border,
+                        padding: 14, backgroundColor: theme.surfaceAlt, gap: 12,
+                      }}>
+                        {hasRoles && (
+                          <>
+                            {/* Paired section */}
+                            <View>
+                              <View style={{
+                                flexDirection: 'row', justifyContent: 'space-between',
+                                alignItems: 'center', marginBottom: 8,
+                              }}>
+                                <Text style={{
+                                  fontFamily: 'DMSans_700Bold',
+                                  fontSize: 10, color: theme.muted,
+                                  textTransform: 'uppercase', letterSpacing: 0.5,
+                                }}>
+                                  PAIRED ({cls.pairs.length})
+                                </Text>
+                                <Text style={{
+                                  fontFamily: 'DMSans_400Regular',
+                                  fontSize: 9, color: theme.muted,
+                                }}>
+                                  ★ = booked as a pre-formed pair
+                                </Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                                {cls.pairs.map((pair, idx) => (
+                                  <View
+                                    key={idx}
+                                    style={{
+                                      backgroundColor: '#d4f0e0',
+                                      borderRadius: 8, padding: 8,
+                                      minWidth: 90,
+                                    }}
+                                  >
+                                    <Text style={{
+                                      fontFamily: 'DMSans_700Bold',
+                                      fontSize: 9, color: '#1a5e3a', marginBottom: 3,
+                                    }}>
+                                      {pair.role1} + {pair.role2}{pair.isPreformed ? ' ★' : ''}
+                                    </Text>
+                                    <Text style={{
+                                      fontFamily: 'DMSans_400Regular',
+                                      fontSize: 11, color: '#1a5e3a',
+                                    }}>
+                                      {pair.name1} & {pair.name2}
+                                    </Text>
+                                  </View>
+                                ))}
+                                {cls.pairs.length === 0 && (
+                                  <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: theme.muted }}>
+                                    No pairs yet
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+
+                            {/* Waiting section */}
+                            {cls.waitingList.length > 0 && (
+                              <View>
+                                <Text style={{
+                                  fontFamily: 'DMSans_700Bold',
+                                  fontSize: 10, color: theme.muted,
+                                  textTransform: 'uppercase', letterSpacing: 0.5,
+                                  marginBottom: 6,
+                                }}>
+                                  ⏳ WAITING FOR PARTNER ({cls.waitingList.length})
+                                </Text>
+                                <View style={{ gap: 5 }}>
+                                  {cls.waitingList.map((w, idx) => (
+                                    <View
+                                      key={idx}
+                                      style={{
+                                        backgroundColor: '#fff8ec',
+                                        borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7,
+                                        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                                        borderWidth: 1, borderColor: '#f4c9a5',
+                                      }}
+                                    >
+                                      <Text style={{
+                                        fontFamily: 'DMSans_600SemiBold',
+                                        fontSize: 12, color: theme.text,
+                                      }}>
+                                        {w.studentName}
+                                      </Text>
+                                      <View style={{
+                                        backgroundColor: '#f4c9a5',
+                                        borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2,
+                                      }}>
+                                        <Text style={{
+                                          fontFamily: 'DMSans_700Bold',
+                                          fontSize: 10, color: '#7c5050',
+                                        }}>
+                                          {w.role}
+                                        </Text>
+                                      </View>
+                                    </View>
+                                  ))}
+                                </View>
+                              </View>
+                            )}
+                          </>
+                        )}
+
+                        {/* Non-role class: show enrolled bar */}
+                        {!hasRoles && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{
+                              flex: 1, height: 6, borderRadius: 3,
+                              backgroundColor: theme.border, overflow: 'hidden',
+                            }}>
+                              <View style={{
+                                width: `${(cls.enrolled / cls.capacity) * 100}%`,
+                                height: 6,
+                                backgroundColor: cls.enrolled >= cls.capacity ? '#e05050' : theme.green,
+                                borderRadius: 3,
+                              }} />
+                            </View>
+                            <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: theme.muted }}>
+                              {cls.enrolled}/{cls.capacity} enrolled
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* Edit button — opens blank create wizard (pre-fill is out of scope) */}
+                        <Pressable
+                          onPress={() => {
+                            setExpandedTeacherClassId(null);
+                            setCreateModal(true);
+                          }}
+                          style={({ pressed }) => ({
+                            backgroundColor: pressed ? theme.accent + '22' : theme.accent + '12',
+                            borderWidth: 1, borderColor: theme.accent + '44',
+                            borderRadius: 8, paddingVertical: 10,
+                            alignItems: 'center',
+                          })}
+                        >
+                          <Text style={{
+                            fontFamily: 'DMSans_600SemiBold',
+                            fontSize: 13, color: theme.accentLight,
+                          }}>
+                            ✏️ Edit Class Details
+                          </Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           </>
         )}
