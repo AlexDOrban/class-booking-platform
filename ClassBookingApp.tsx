@@ -93,8 +93,8 @@ interface Role {
 
 interface Booking {
   pricePaid: string;
-  bookingType: 'solo' | 'pair';
-  role: string;
+  bookingType?: 'solo' | 'pair';
+  role?: string;
   partnerName?: string;
   partnerRole?: string;
   pairedWithBookingId?: number;
@@ -290,13 +290,75 @@ export default function ClassBookingApp() {
     bannerAnimRef.current.start(() => setSuccessMsg(''));
   };
 
-  const handleBook = (cls: ClassItem) => {
-    if (cls.enrolled >= cls.capacity) return;
-    setClasses(prev => prev.map(c => c.id === cls.id ? { ...c, enrolled: c.enrolled + 1 } : c));
-    setBookedIds(prev => new Map(prev).set(cls.id, { pricePaid: getDiscountedPrice(cls) }));
+  const handleBook = (cls: ClassItem, bookingData: Omit<Booking, 'pricePaid'>) => {
+    setBookedIds(prev => new Map(prev).set(cls.id, {
+      pricePaid: getDiscountedPrice(cls),
+      ...bookingData,
+    }));
     setBookingModal(null);
     setSelected(null);
     showSuccess(`You're booked into "${cls.title}"!`);
+  };
+
+  // Solo booking: adds student to waitingList, auto-pairs with earliest waiting student
+  // who has a different role (FIFO). Updates roleEnrollments and enrolled count.
+  const handleSoloBook = (cls: ClassItem, studentName: string, role: string) => {
+    let pairedWithTimestamp: number | undefined;
+    setClasses(prev => prev.map(c => {
+      if (c.id !== cls.id) return c;
+      const partnerIdx = c.waitingList.findIndex(w => w.role !== role);
+      const newRoleEnrollments = {
+        ...c.roleEnrollments,
+        [role]: (c.roleEnrollments[role] || 0) + 1,
+      };
+      let newWaitingList: ClassItem['waitingList'];
+      let newPairs: ClassItem['pairs'];
+      if (partnerIdx >= 0) {
+        const partner = c.waitingList[partnerIdx];
+        pairedWithTimestamp = partner.timestamp;
+        newWaitingList = c.waitingList.filter((_, i) => i !== partnerIdx);
+        newPairs = [
+          ...c.pairs,
+          { name1: studentName, role1: role, name2: partner.studentName, role2: partner.role, isPreformed: false },
+        ];
+      } else {
+        newWaitingList = [...c.waitingList, { studentName, role, timestamp: Date.now() }];
+        newPairs = c.pairs;
+      }
+      return {
+        ...c,
+        enrolled: c.enrolled + 1,
+        roleEnrollments: newRoleEnrollments,
+        waitingList: newWaitingList,
+        pairs: newPairs,
+      };
+    }));
+    handleBook(cls, { bookingType: 'solo', role, pairedWithBookingId: pairedWithTimestamp });
+  };
+
+  // Pair booking: reserves both roles atomically. enrolled += 2 (one per person).
+  const handlePairBook = (
+    cls: ClassItem,
+    myName: string, myRole: string,
+    partnerName: string, partnerRole: string,
+  ) => {
+    setClasses(prev => prev.map(c => {
+      if (c.id !== cls.id) return c;
+      return {
+        ...c,
+        enrolled: c.enrolled + 2,
+        roleEnrollments: {
+          ...c.roleEnrollments,
+          [myRole]: (c.roleEnrollments[myRole] || 0) + 1,
+          [partnerRole]: (c.roleEnrollments[partnerRole] || 0) + 1,
+        },
+        pairs: [
+          ...c.pairs,
+          { name1: myName, role1: myRole, name2: partnerName, role2: partnerRole, isPreformed: true },
+        ],
+      };
+    }));
+    handleBook(cls, { bookingType: 'pair', role: myRole, partnerName, partnerRole });
   };
 
   const handleCancelBooking = (id: number) => {
@@ -308,7 +370,39 @@ export default function ClassBookingApp() {
         {
           text: 'Cancel Booking', style: 'destructive',
           onPress: () => {
-            setClasses(prev => prev.map(c => c.id === id ? { ...c, enrolled: Math.max(0, c.enrolled - 1) } : c));
+            const booking = bookedIds.get(id);
+            setClasses(prev => prev.map(c => {
+              if (c.id !== id) return c;
+              if (!booking || !booking.role) {
+                // No-role class
+                return { ...c, enrolled: Math.max(0, c.enrolled - 1) };
+              }
+              // Role class: decrement roleEnrollments
+              const decrement = (rec: Record<string, number>, key: string) => ({
+                ...rec,
+                [key]: Math.max(0, (rec[key] || 0) - 1),
+              });
+              let newEnrollments = decrement(c.roleEnrollments, booking.role);
+              let enrolledDelta = 1;
+              if (booking.bookingType === 'pair' && booking.partnerRole) {
+                newEnrollments = decrement(newEnrollments, booking.partnerRole);
+                enrolledDelta = 2;
+              }
+              // Remove from pairs (match by the current user's role in name1 slot;
+              // for simplicity remove first pair that includes booking.role)
+              const newPairs = (() => {
+                const idx = c.pairs.findIndex(p =>
+                  (p.role1 === booking.role) || (p.role2 === booking.role && booking.bookingType === 'pair')
+                );
+                return idx >= 0 ? c.pairs.filter((_, i) => i !== idx) : c.pairs;
+              })();
+              return {
+                ...c,
+                enrolled: Math.max(0, c.enrolled - enrolledDelta),
+                roleEnrollments: newEnrollments,
+                pairs: newPairs,
+              };
+            }));
             setBookedIds(prev => { const m = new Map(prev); m.delete(id); return m; });
             setExpandedBookingId(null);
             showSuccess('Booking cancelled');
@@ -321,6 +415,14 @@ export default function ClassBookingApp() {
   const handleCreateClass = () => {
     const lat = parseFloat(newClass.lat) || 50.85 + (Math.random() - 0.5) * 0.03;
     const lng = parseFloat(newClass.lng) || 4.35 + (Math.random() - 0.5) * 0.04;
+    const parsedRoles: Role[] = newClass.roles
+      .filter(r => r.name.trim())
+      .map(r => ({ name: r.name.trim(), capacity: Number(r.capacity) || 10 }));
+    const effectiveCapacity = parsedRoles.length > 0
+      ? parsedRoles.reduce((sum, r) => sum + r.capacity, 0)
+      : Number(newClass.capacity);
+    const roleEnrollments: Record<string, number> = {};
+    parsedRoles.forEach(r => { roleEnrollments[r.name] = 0; });
     const cls: ClassItem = {
       id: Date.now(),
       title: newClass.title,
@@ -333,16 +435,16 @@ export default function ClassBookingApp() {
       time: newClass.time,
       enrolled: 0,
       duration: Number(newClass.duration),
-      capacity: Number(newClass.capacity),
+      capacity: effectiveCapacity,
       basePrice: Number(newClass.basePrice),
       discounts: {
         student: Number(newClass.discounts.student),
         retired: Number(newClass.discounts.retired),
       },
       color: newClass.color,
-      roles: newClass.roles.map(r => ({ name: r.name, capacity: Number(r.capacity) })),
-      minPairs: Number(newClass.minPairs),
-      roleEnrollments: {},
+      roles: parsedRoles,
+      minPairs: Number(newClass.minPairs) || 0,
+      roleEnrollments,
       waitingList: [],
       pairs: [],
     };
@@ -1366,7 +1468,7 @@ export default function ClassBookingApp() {
                       </Text>
                     </Pressable>
                     <Pressable
-                      onPress={() => handleBook(bookingModal)}
+                      onPress={() => handleBook(bookingModal, {})}
                       style={({ pressed }) => ({ flex: 2, opacity: pressed ? 0.85 : 1 })}
                     >
                       <LinearGradient
