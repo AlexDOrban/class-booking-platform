@@ -1508,7 +1508,7 @@ export default function ClassBookingApp() {
         visible={createModal}
         animationType="slide"
         transparent
-        onRequestClose={() => { setCreateModal(false); setCreateStep(1); setCreateHasRoles(false); }}
+        onRequestClose={() => { setCreateModal(false); setCreateStep(1); setCreateHasRoles(false); setNewClass(BLANK_NEW_CLASS); }}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -1517,7 +1517,7 @@ export default function ClassBookingApp() {
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
             <Pressable
               style={StyleSheet.absoluteFillObject}
-              onPress={() => { setCreateModal(false); setCreateStep(1); setCreateHasRoles(false); }}
+              onPress={() => { setCreateModal(false); setCreateStep(1); setCreateHasRoles(false); setNewClass(BLANK_NEW_CLASS); }}
             />
             <View style={{
               backgroundColor: theme.surface,
