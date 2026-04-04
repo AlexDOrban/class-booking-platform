@@ -80,7 +80,7 @@ export default function CustomDropdown({
           backgroundColor: surface,
           borderRadius: 8, borderWidth: 1, borderColor: border,
           opacity: fadeAnim,
-          shadowColor: '#000',
+          shadowColor: text,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.15,
           shadowRadius: 8,
