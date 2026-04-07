@@ -259,12 +259,23 @@ export function SignInSignUpModal({ visible, onClose, onSignIn, theme }: SignInS
 
 // ─── PROFILE SCREEN ──────────────────────────────────────────────────────────
 
+function SectionHeader({ title, theme }: { title: string; theme: Theme }) {
+  return (
+    <Text style={{
+      fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: theme.muted,
+      textTransform: 'uppercase', marginBottom: 10,
+    }}>
+      {title}
+    </Text>
+  );
+}
+
 interface ProfileScreenProps {
   visible: boolean;
   onClose: () => void;
   account: Account;
   onAccountUpdate: (account: Account) => void;
-  onSignOut: () => void;
+  onSignOut: () => Promise<void>;
   onOpenVerification: (account: Account) => void;
   theme: Theme;
 }
@@ -278,16 +289,20 @@ export function ProfileScreen({
     if (type === discountType) return;
 
     const applyChange = async () => {
-      const updated: Account = {
-        ...account,
-        discountType: type,
-        verification: type === 'none'
-          ? { ...account.verification, status: 'unverified', idPhotoUri: null, selfieUri: null, submittedAt: null }
-          : account.verification,
-      };
-      const saved = await updateAccount(updated);
-      onAccountUpdate(saved);
-      if (type !== 'none') onOpenVerification(saved);
+      try {
+        const updated: Account = {
+          ...account,
+          discountType: type,
+          verification: type === 'none'
+            ? { ...account.verification, status: 'unverified', idPhotoUri: null, selfieUri: null, submittedAt: null }
+            : account.verification,
+        };
+        const saved = await updateAccount(updated);
+        onAccountUpdate(saved);
+        if (type !== 'none') onOpenVerification(saved);
+      } catch {
+        Alert.alert('Error', 'Could not save changes. Please try again.');
+      }
     };
 
     if (verification.status === 'approved') {
@@ -299,16 +314,20 @@ export function ProfileScreen({
           {
             text: 'Switch & Re-verify', style: 'destructive',
             onPress: async () => {
-              const updated: Account = {
-                ...account,
-                discountType: type,
-                verification: {
-                  status: 'unverified', idPhotoUri: null, selfieUri: null, submittedAt: null,
-                },
-              };
-              const saved = await updateAccount(updated);
-              onAccountUpdate(saved);
-              if (type !== 'none') onOpenVerification(saved);
+              try {
+                const updated: Account = {
+                  ...account,
+                  discountType: type,
+                  verification: {
+                    status: 'unverified', idPhotoUri: null, selfieUri: null, submittedAt: null,
+                  },
+                };
+                const saved = await updateAccount(updated);
+                onAccountUpdate(saved);
+                if (type !== 'none') onOpenVerification(saved);
+              } catch {
+                Alert.alert('Error', 'Could not save changes. Please try again.');
+              }
             },
           },
         ],
@@ -381,15 +400,6 @@ export function ProfileScreen({
     );
   };
 
-  const SectionHeader = ({ title }: { title: string }) => (
-    <Text style={{
-      fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: theme.muted,
-      textTransform: 'uppercase', marginBottom: 10,
-    }}>
-      {title}
-    </Text>
-  );
-
   const divider = <View style={{ height: 1, backgroundColor: theme.border, marginVertical: 20 }} />;
 
   return (
@@ -412,7 +422,7 @@ export function ProfileScreen({
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* ── Identity ── */}
-              <SectionHeader title="Identity" />
+              <SectionHeader title="Identity" theme={theme} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 {account.avatarUri ? (
                   <Image source={{ uri: account.avatarUri }}
@@ -436,7 +446,7 @@ export function ProfileScreen({
               {divider}
 
               {/* ── Discount type ── */}
-              <SectionHeader title="Discount Type" />
+              <SectionHeader title="Discount Type" theme={theme} />
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {(['none', 'student', 'retired'] as const).map(type => {
                   const labels = { none: 'None', student: '🎓 Student', retired: '👴 Senior' };
@@ -467,14 +477,14 @@ export function ProfileScreen({
               {divider}
 
               {/* ── Verification status ── */}
-              <SectionHeader title="Verification Status" />
+              <SectionHeader title="Verification Status" theme={theme} />
               {verificationBadge()}
 
               {divider}
 
               {/* ── Sign out ── */}
               <Pressable
-                onPress={() => { onClose(); onSignOut(); }}
+                onPress={async () => { onClose(); await onSignOut(); }}
                 style={({ pressed }) => ({
                   paddingVertical: 12, borderRadius: 10, alignItems: 'center',
                   borderWidth: 1, borderColor: '#e05050',
