@@ -72,9 +72,8 @@ export async function signIn(email: string, password: string): Promise<Account> 
   return account;
 }
 
-export function signOut(setAccount: (a: Account | null) => void): void {
-  AsyncStorage.removeItem(CURRENT_ACCOUNT_KEY);
-  setAccount(null);
+export async function signOut(): Promise<void> {
+  await AsyncStorage.removeItem(CURRENT_ACCOUNT_KEY);
 }
 
 export async function restoreSession(): Promise<Account | null> {
