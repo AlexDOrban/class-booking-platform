@@ -268,9 +268,9 @@ export default function ClassBookingApp() {
   }, []);
 
   useEffect(() => {
-    restoreSession().then(account => {
-      if (account) setCurrentAccount(account);
-    });
+    restoreSession()
+      .then(account => { if (account) setCurrentAccount(account); })
+      .catch(() => { /* storage unavailable — stay logged out */ });
   }, []);
 
   const toggleDark = () => {
@@ -552,7 +552,7 @@ export default function ClassBookingApp() {
         </View>
 
         {/* Controls */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 }}>
           {/* View toggle */}
           <View style={{
             flexDirection: 'row', backgroundColor: theme.surfaceAlt,
@@ -1776,11 +1776,14 @@ export default function ClassBookingApp() {
                       }}>
                         €{getDiscountedPrice(bookingModal)}
                       </Text>
-                      {getDiscountLabel(bookingModal) && (
-                        <Text style={{ fontSize: 11, color: theme.green, fontFamily: 'DMSans_400Regular' }}>
-                          {getDiscountLabel(bookingModal)}
-                        </Text>
-                      )}
+                      {(() => {
+                        const discLabel = getDiscountLabel(bookingModal);
+                        return discLabel ? (
+                          <Text style={{ fontSize: 11, color: theme.green, fontFamily: 'DMSans_400Regular' }}>
+                            {discLabel}
+                          </Text>
+                        ) : null;
+                      })()}
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 10 }}>
