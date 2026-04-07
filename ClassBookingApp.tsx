@@ -969,7 +969,7 @@ export default function ClassBookingApp() {
                                   fontFamily: 'DMSans_400Regular',
                                   fontSize: 12, color: theme.muted,
                                 }}>
-                                  📅 {new Date(cls.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {cls.time} · {cls.duration}min
+                                  {booking.role ? `${booking.role} · ` : ''}📅 {new Date(cls.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {cls.time} · {cls.duration}min
                                 </Text>
                               </View>
                               <View style={{ alignItems: 'flex-end' }}>
@@ -995,7 +995,7 @@ export default function ClassBookingApp() {
                                 padding: 12, backgroundColor: theme.surfaceAlt,
                                 gap: 10,
                               }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                   <View style={{
                                     backgroundColor: '#d4f0e0',
                                     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
@@ -1007,6 +1007,19 @@ export default function ClassBookingApp() {
                                       ✓ Booked
                                     </Text>
                                   </View>
+                                  {booking.role ? (
+                                    <View style={{
+                                      backgroundColor: theme.accent + '18',
+                                      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+                                    }}>
+                                      <Text style={{
+                                        fontFamily: 'DMSans_600SemiBold',
+                                        fontSize: 11, color: theme.accentLight,
+                                      }}>
+                                        {booking.role}
+                                      </Text>
+                                    </View>
+                                  ) : null}
                                   <Text style={{
                                     fontFamily: 'DMSans_400Regular',
                                     fontSize: 12, color: theme.muted,
@@ -1014,6 +1027,32 @@ export default function ClassBookingApp() {
                                     {cls.teacher} · {cls.category}
                                   </Text>
                                 </View>
+
+                                {/* Partner info for role bookings */}
+                                {booking.role ? (
+                                  <View style={{
+                                    backgroundColor: (booking.bookingType === 'pair' && booking.partnerName) || booking.pairedWithBookingId
+                                      ? '#d4f0e0' : '#fff8ec',
+                                    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8,
+                                    borderWidth: 1,
+                                    borderColor: (booking.bookingType === 'pair' && booking.partnerName) || booking.pairedWithBookingId
+                                      ? '#a8d8b9' : '#f4c9a5',
+                                  }}>
+                                    <Text style={{
+                                      fontFamily: 'DMSans_400Regular',
+                                      fontSize: 12,
+                                      color: (booking.bookingType === 'pair' && booking.partnerName) || booking.pairedWithBookingId
+                                        ? '#1a5e3a' : '#7c5050',
+                                    }}>
+                                      {booking.bookingType === 'pair' && booking.partnerName
+                                        ? `👥 Paired with: ${booking.partnerName} (${booking.partnerRole})`
+                                        : booking.pairedWithBookingId
+                                          ? '👥 Auto-paired with a partner'
+                                          : '⏳ Waiting for partner'}
+                                    </Text>
+                                  </View>
+                                ) : null}
+
                                 <Text style={{
                                   fontFamily: 'DMSans_400Regular',
                                   fontSize: 12, color: theme.muted,
