@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, Pressable, TextInput, Modal, ScrollView,
   KeyboardAvoidingView, Platform, Image, Alert, ActivityIndicator,
@@ -516,8 +516,9 @@ export function VerificationModal({
 }: VerificationModalProps) {
   // Step: 1=choose type, 2=ID photo, 3=selfie, 4=pending/result
   // If discountType is already set, start at step 2
-  const initialStep = (): 1 | 2 | 3 | 4 => (account.discountType !== 'none' ? 2 : 1);
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialStep());
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(
+    account.discountType !== 'none' ? 2 : 1
+  );
   const [localType, setLocalType] = useState<'student' | 'retired'>(
     account.discountType !== 'none' ? account.discountType as 'student' | 'retired' : 'student'
   );
@@ -528,6 +529,15 @@ export function VerificationModal({
     account.verification.status === 'rejected' ? null : account.verification.selfieUri
   );
   const [approved, setApproved] = useState(false);
+
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const accountRef = useRef(account);
+  useEffect(() => { accountRef.current = account; });
 
   const resetState = (acc: Account) => {
     setStep(acc.discountType !== 'none' ? 2 : 1);
@@ -596,9 +606,11 @@ export function VerificationModal({
             verification: { ...saved.verification, status: 'approved' },
           };
           const finalSaved = await updateAccount(approvedAccount);
+          if (!mountedRef.current) return;
           onAccountUpdate(finalSaved);
           setApproved(true);
         } catch {
+          if (!mountedRef.current) return;
           Alert.alert('Error', 'Verification update failed. Please try again.');
         }
       }, 3000);
@@ -615,7 +627,7 @@ export function VerificationModal({
       animationType="slide"
       transparent
       onRequestClose={onClose}
-      onShow={() => resetState(account)}
+      onShow={() => resetState(accountRef.current)}
     >
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
         <View style={{
