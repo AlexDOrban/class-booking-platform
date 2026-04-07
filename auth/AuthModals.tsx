@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import {
-  View, Text, Pressable, TextInput, Modal, ScrollView,
+  View, Text, Pressable, TextInput, Modal,
   KeyboardAvoidingView, Platform, Image, Alert, ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Account, signIn, signUp, signOut, updateAccount } from './AuthStore';
+import { Account, signIn, signUp } from './AuthStore';
 
 type Theme = {
   bg: string; surface: string; surfaceAlt: string; border: string;
@@ -78,13 +78,15 @@ export function SignInSignUpModal({ visible, onClose, onSignIn, theme }: SignInS
     }
   };
 
-  const pickAvatar = (source: 'camera' | 'gallery') => {
-    const launch = source === 'camera'
-      ? ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 })
-      : ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 });
-    launch.then(result => {
+  const pickAvatar = async (source: 'camera' | 'gallery') => {
+    try {
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 });
       if (!result.canceled) setSuAvatarUri(result.assets[0].uri);
-    });
+    } catch {
+      // picker dismissed or permission denied — no-op
+    }
   };
 
   const input = (
@@ -194,7 +196,7 @@ export function SignInSignUpModal({ visible, onClose, onSignIn, theme }: SignInS
                           { text: 'Cancel', style: 'cancel' },
                         ])
                       }
-                      style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, width: 72, height: 72 })}
                     >
                       {suAvatarUri ? (
                         <Image
