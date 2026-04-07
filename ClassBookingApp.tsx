@@ -1792,7 +1792,7 @@ export default function ClassBookingApp() {
                         </View>
                       )}
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: theme.text, fontWeight: '600', fontSize: 14, fontFamily: 'DMSans_600SemiBold' }}>
+                        <Text style={{ color: theme.text, fontWeight: '700', fontSize: 14, fontFamily: 'DMSans_700Bold' }}>
                           {currentAccount.name}
                         </Text>
                         <Text style={{ color: theme.muted, fontSize: 12, fontFamily: 'DMSans_400Regular' }}>{currentAccount.email}</Text>
