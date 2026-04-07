@@ -325,6 +325,15 @@ export default function ClassBookingApp() {
     setPairPartnerRole('');
   };
 
+  const handleBookPress = (cls: ClassItem) => {
+    if (!currentAccount) {
+      setPendingBookingClass(cls);
+      setShowAuthModal(true);
+      return;
+    }
+    setBookingModal(cls);
+  };
+
   const handleBook = (cls: ClassItem, bookingData: Omit<Booking, 'pricePaid'>) => {
     // For no-role classes, enrolled is incremented here.
     // For role classes, handleSoloBook/handlePairBook already incremented enrolled before calling here.
@@ -882,7 +891,7 @@ export default function ClassBookingApp() {
                               )}
                             </View>
                             <Pressable
-                              onPress={() => { if (!full && !bookedIds.has(cls.id)) setBookingModal(cls); }}
+                              onPress={() => { if (!full && !bookedIds.has(cls.id)) handleBookPress(cls); }}
                               disabled={full || bookedIds.has(cls.id)}
                               style={({ pressed }) => ({
                                 paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9,
@@ -1678,8 +1687,8 @@ export default function ClassBookingApp() {
                       <Pressable
                         onPress={() => {
                           if (selected.enrolled < selected.capacity && !bookedIds.has(selected.id)) {
-                            setBookingModal(selected);
                             setSelected(null);
+                            handleBookPress(selected);
                           }
                         }}
                         disabled={selected.enrolled >= selected.capacity || bookedIds.has(selected.id)}
@@ -1761,6 +1770,47 @@ export default function ClassBookingApp() {
                     {' at '}
                     {bookingModal.time}.
                   </Text>
+                  {/* Identity row */}
+                  {currentAccount && (
+                    <View style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 10,
+                      backgroundColor: theme.surfaceAlt, borderRadius: 10, padding: 12, marginBottom: 12,
+                    }}>
+                      {currentAccount.avatarUri ? (
+                        <Image
+                          source={{ uri: currentAccount.avatarUri }}
+                          style={{ width: 36, height: 36, borderRadius: 18 }}
+                        />
+                      ) : (
+                        <View style={{
+                          width: 36, height: 36, borderRadius: 18, backgroundColor: theme.accent,
+                          alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Text style={{ color: '#fff', fontWeight: '700' }}>
+                            {currentAccount.name.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: theme.text, fontWeight: '600', fontSize: 14, fontFamily: 'DMSans_600SemiBold' }}>
+                          {currentAccount.name}
+                        </Text>
+                        <Text style={{ color: theme.muted, fontSize: 12, fontFamily: 'DMSans_400Regular' }}>{currentAccount.email}</Text>
+                      </View>
+                      {currentAccount.verification.status === 'approved' && currentAccount.discountType !== 'none' && (
+                        <View style={{
+                          backgroundColor: theme.green + '18',
+                          paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+                          flexDirection: 'row', alignItems: 'center', gap: 4,
+                        }}>
+                          <Text style={{ fontSize: 12 }}>🛡️</Text>
+                          <Text style={{ color: theme.green, fontWeight: '600', fontSize: 11, fontFamily: 'DMSans_600SemiBold' }}>
+                            Verified {currentAccount.discountType === 'student' ? 'Student' : 'Senior'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
                   <View style={{
                     backgroundColor: theme.surfaceAlt, borderRadius: 12, padding: 14,
                     flexDirection: 'row', justifyContent: 'space-between',
