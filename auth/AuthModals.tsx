@@ -39,8 +39,8 @@ export function SignInSignUpModal({ visible, onClose, onSignIn, theme }: SignInS
   const [suLoading, setSuLoading] = useState(false);
 
   const resetAll = () => {
-    setSiEmail(''); setSiPassword(''); setSiError('');
-    setSuName(''); setSuEmail(''); setSuPassword(''); setSuAvatarUri(null); setSuError('');
+    setSiEmail(''); setSiPassword(''); setSiError(''); setSiLoading(false);
+    setSuName(''); setSuEmail(''); setSuPassword(''); setSuAvatarUri(null); setSuError(''); setSuLoading(false);
     setTab('signin');
   };
 
