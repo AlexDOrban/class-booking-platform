@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, Pressable, TextInput, ScrollView, Modal,
   Animated, StyleSheet, useWindowDimensions, SafeAreaView,
-  Platform, KeyboardAvoidingView, Alert,
+  Platform, KeyboardAvoidingView, Alert, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import CustomDropdown from './components/CustomDropdown';
+import { Account, restoreSession, signOut } from './auth/AuthStore';
+import { SignInSignUpModal } from './auth/AuthModals';
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
@@ -229,7 +231,11 @@ export default function ClassBookingApp() {
   const [bookingModal, setBookingModal] = useState<ClassItem | null>(null);
   const [createModal, setCreateModal] = useState(false);
   const [filterCategory, setFilterCategory] = useState('All');
-  const [profileType, setProfileType] = useState<'standard' | 'student' | 'retired'>('standard');
+  const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [pendingBookingClass, setPendingBookingClass] = useState<ClassItem | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [newClass, setNewClass] = useState<NewClassForm>(BLANK_NEW_CLASS);
   const [bookedIds, setBookedIds] = useState<Map<number, Booking>>(new Map());
@@ -261,6 +267,12 @@ export default function ClassBookingApp() {
     return () => { bannerAnimRef.current?.stop(); };
   }, []);
 
+  useEffect(() => {
+    restoreSession().then(account => {
+      if (account) setCurrentAccount(account);
+    });
+  }, []);
+
   const toggleDark = () => {
     const next = !dark;
     setDark(next);
@@ -273,15 +285,17 @@ export default function ClassBookingApp() {
     c => filterCategory === 'All' || c.category === filterCategory
   );
 
-  const getDiscountedPrice = (cls: ClassItem) => {
-    if (profileType === 'student') return (cls.basePrice * (1 - cls.discounts.student / 100)).toFixed(2);
-    if (profileType === 'retired') return (cls.basePrice * (1 - cls.discounts.retired / 100)).toFixed(2);
+  const getDiscountedPrice = (cls: ClassItem, account: Account | null = currentAccount) => {
+    if (!account || account.verification.status !== 'approved') return cls.basePrice.toFixed(2);
+    if (account.discountType === 'student') return (cls.basePrice * (1 - cls.discounts.student / 100)).toFixed(2);
+    if (account.discountType === 'retired') return (cls.basePrice * (1 - cls.discounts.retired / 100)).toFixed(2);
     return cls.basePrice.toFixed(2);
   };
 
-  const getDiscountLabel = (cls: ClassItem) => {
-    if (profileType === 'student') return `${cls.discounts.student}% student discount`;
-    if (profileType === 'retired') return `${cls.discounts.retired}% senior discount`;
+  const getDiscountLabel = (cls: ClassItem, account: Account | null = currentAccount) => {
+    if (!account || account.verification.status !== 'approved') return null;
+    if (account.discountType === 'student') return `${cls.discounts.student}% student discount`;
+    if (account.discountType === 'retired') return `${cls.discounts.retired}% senior discount`;
     return null;
   };
 
@@ -498,12 +512,6 @@ export default function ClassBookingApp() {
   const numCols = width >= 600 ? 2 : 1;
   const cardWidth = (width - 40 - (numCols - 1) * 16) / numCols;
 
-  const profileOptions = [
-    { label: 'Regular', value: 'standard' },
-    { label: 'Student', value: 'student' },
-    { label: 'Senior / Retired', value: 'retired' },
-  ];
-
   const categoryOptions = categories
     .filter(c => c !== 'All')
     .map(c => ({ label: c, value: c }));
@@ -591,6 +599,46 @@ export default function ClassBookingApp() {
               <Text style={{ fontSize: 10 }}>{dark ? '🌙' : '☀️'}</Text>
             </Animated.View>
           </Pressable>
+
+          {/* Auth button */}
+          {view === 'student' && (
+            currentAccount ? (
+              <Pressable
+                onPress={() => setShowProfileModal(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              >
+                {currentAccount.avatarUri ? (
+                  <Image
+                    source={{ uri: currentAccount.avatarUri }}
+                    style={{ width: 32, height: 32, borderRadius: 16 }}
+                  />
+                ) : (
+                  <View style={{
+                    width: 32, height: 32, borderRadius: 16,
+                    backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                      {currentAccount.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <Text style={{
+                  color: theme.text, fontSize: 13, fontWeight: '600', maxWidth: 80,
+                }} numberOfLines={1}>
+                  {currentAccount.name.split(' ')[0]}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => setShowAuthModal(true)}
+                style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+              >
+                <Text style={{ color: theme.accent, fontWeight: '600', fontSize: 14 }}>
+                  Sign In
+                </Text>
+              </Pressable>
+            )
+          )}
         </View>
       </View>
 
@@ -712,31 +760,6 @@ export default function ClassBookingApp() {
                   ))}
                 </ScrollView>
 
-                {/* Profile type selector */}
-                <View style={{
-                  flexDirection: 'row', alignItems: 'center',
-                  gap: 10, marginBottom: 20,
-                }}>
-                  <Text style={{
-                    color: theme.muted, fontSize: 13,
-                    fontFamily: 'DMSans_400Regular',
-                  }}>
-                    I am a:
-                  </Text>
-                  <View style={{ flex: 1, maxWidth: 220 }}>
-                    <CustomDropdown
-                      value={profileType}
-                      options={profileOptions}
-                      onChange={v => setProfileType(v as 'standard' | 'student' | 'retired')}
-                      border={theme.border}
-                      surfaceAlt={theme.surfaceAlt}
-                      surface={theme.surface}
-                      text={theme.text}
-                      muted={theme.muted}
-                    />
-                  </View>
-                </View>
-
                 {/* Class cards grid */}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
                   {filteredClasses.map(cls => {
@@ -848,7 +871,7 @@ export default function ClassBookingApp() {
                                   </Text>
                                 </View>
                               )}
-                              {profileType !== 'standard' && (
+                              {currentAccount && currentAccount.verification.status === 'approved' && currentAccount.discountType !== 'none' && (
                                 <Text style={{
                                   fontSize: 11, color: theme.muted,
                                   textDecorationLine: 'line-through', marginTop: 2,
@@ -2574,6 +2597,20 @@ export default function ClassBookingApp() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <SignInSignUpModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignIn={account => {
+          setCurrentAccount(account);
+          setShowAuthModal(false);
+          if (pendingBookingClass) {
+            setBookingModal(pendingBookingClass);
+            setPendingBookingClass(null);
+          }
+        }}
+        theme={theme}
+      />
 
     </SafeAreaView>
   );
