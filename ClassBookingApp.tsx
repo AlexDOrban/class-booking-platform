@@ -98,6 +98,7 @@ interface Booking {
   partnerName?: string;
   partnerRole?: string;
   pairedWithBookingId?: number;
+  ownWaitTimestamp?: number;  // set when solo booking goes onto waitingList (used for precise cancel)
 }
 
 interface ClassItem {
@@ -312,8 +313,8 @@ export default function ClassBookingApp() {
 
   const handleBook = (cls: ClassItem, bookingData: Omit<Booking, 'pricePaid'>) => {
     // For no-role classes, enrolled is incremented here.
-    // For role classes, handleSoloBook/handlePairBook increment enrolled before calling here.
-    if (!bookingData.bookingType) {
+    // For role classes, handleSoloBook/handlePairBook already incremented enrolled before calling here.
+    if (cls.roles.length === 0) {
       setClasses(prev => prev.map(c => c.id === cls.id ? { ...c, enrolled: c.enrolled + 1 } : c));
     }
     setBookedIds(prev => new Map(prev).set(cls.id, {
@@ -328,26 +329,29 @@ export default function ClassBookingApp() {
   // Solo booking: adds student to waitingList, auto-pairs with earliest waiting student
   // who has a different role (FIFO). Updates roleEnrollments and enrolled count.
   const handleSoloBook = (cls: ClassItem, studentName: string, role: string) => {
-    let pairedWithTimestamp: number | undefined;
+    // Compute pairing decision from current state snapshot before setState
+    const currentCls = classes.find(c => c.id === cls.id);
+    const partnerIdx = currentCls ? currentCls.waitingList.findIndex(w => w.role !== role) : -1;
+    const partner = partnerIdx >= 0 && currentCls ? currentCls.waitingList[partnerIdx] : undefined;
+    const ownTimestamp = Date.now();
+
     setClasses(prev => prev.map(c => {
       if (c.id !== cls.id) return c;
-      const partnerIdx = c.waitingList.findIndex(w => w.role !== role);
+      const pIdx = c.waitingList.findIndex(w => w.role !== role);
       const newRoleEnrollments = {
         ...c.roleEnrollments,
         [role]: (c.roleEnrollments[role] || 0) + 1,
       };
       let newWaitingList: ClassItem['waitingList'];
       let newPairs: ClassItem['pairs'];
-      if (partnerIdx >= 0) {
-        const partner = c.waitingList[partnerIdx];
-        pairedWithTimestamp = partner.timestamp;
-        newWaitingList = c.waitingList.filter((_, i) => i !== partnerIdx);
+      if (pIdx >= 0) {
+        newWaitingList = c.waitingList.filter((_, i) => i !== pIdx);
         newPairs = [
           ...c.pairs,
-          { name1: studentName, role1: role, name2: partner.studentName, role2: partner.role, isPreformed: false },
+          { name1: studentName, role1: role, name2: c.waitingList[pIdx].studentName, role2: c.waitingList[pIdx].role, isPreformed: false },
         ];
       } else {
-        newWaitingList = [...c.waitingList, { studentName, role, timestamp: Date.now() }];
+        newWaitingList = [...c.waitingList, { studentName, role, timestamp: ownTimestamp }];
         newPairs = c.pairs;
       }
       return {
@@ -358,7 +362,12 @@ export default function ClassBookingApp() {
         pairs: newPairs,
       };
     }));
-    handleBook(cls, { bookingType: 'solo', role, pairedWithBookingId: pairedWithTimestamp });
+    handleBook(cls, {
+      bookingType: 'solo',
+      role,
+      pairedWithBookingId: partner ? partner.timestamp : undefined,
+      ownWaitTimestamp: partner ? undefined : ownTimestamp,
+    });
   };
 
   // Pair booking: reserves both roles atomically. enrolled += 2 (one per person).
@@ -413,9 +422,9 @@ export default function ClassBookingApp() {
                 newEnrollments = decrement(newEnrollments, booking.partnerRole);
                 enrolledDelta = 2;
               }
-              // For solo bookings still waiting for a partner, remove from waitingList
-              const newWaitingList = booking.bookingType === 'solo' && !booking.pairedWithBookingId
-                ? c.waitingList.filter(w => !(w.role === booking.role))
+              // For solo bookings still waiting for a partner, remove by timestamp for precise match
+              const newWaitingList = booking.bookingType === 'solo' && !booking.pairedWithBookingId && booking.ownWaitTimestamp
+                ? c.waitingList.filter(w => w.timestamp !== booking.ownWaitTimestamp)
                 : c.waitingList;
               // Remove from pairs (match by the current user's role in name1 slot;
               // for simplicity remove first pair that includes booking.role)
