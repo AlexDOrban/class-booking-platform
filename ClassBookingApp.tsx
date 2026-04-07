@@ -1805,6 +1805,7 @@ export default function ClassBookingApp() {
                         }}>
                           <Text style={{ fontSize: 12 }}>🛡️</Text>
                           <Text style={{ color: theme.green, fontWeight: '600', fontSize: 11, fontFamily: 'DMSans_600SemiBold' }}>
+                            {/* 'retired' is surfaced as 'Senior' to users throughout the feature */}
                             Verified {currentAccount.discountType === 'student' ? 'Student' : 'Senior'}
                           </Text>
                         </View>
