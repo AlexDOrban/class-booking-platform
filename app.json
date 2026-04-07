@@ -25,6 +25,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Classe to access your photos for profile and verification.",
+          "cameraPermission": "Allow Classe to use your camera for profile and verification photos."
+        }
+      ]
+    ]
   }
 }
