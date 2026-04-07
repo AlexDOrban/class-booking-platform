@@ -1728,7 +1728,7 @@ export default function ClassBookingApp() {
                     </Pressable>
                     <Pressable
                       onPress={() => {
-                        handleBook(bookingModal, {});
+                        handleBook(bookingModal, { bookingType: 'solo', role: '' });
                         resetBookingFlow();
                       }}
                       style={({ pressed }) => ({ flex: 2, opacity: pressed ? 0.85 : 1 })}
