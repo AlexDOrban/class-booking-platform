@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import CustomDropdown from './components/CustomDropdown';
 import { Account, restoreSession, signOut } from './auth/AuthStore';
-import { SignInSignUpModal, ProfileScreen } from './auth/AuthModals';
+import { SignInSignUpModal, ProfileScreen, VerificationModal } from './auth/AuthModals';
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
@@ -2627,6 +2627,16 @@ export default function ClassBookingApp() {
             setShowProfileModal(false);
             setShowVerificationModal(true);
           }}
+          theme={theme}
+        />
+      )}
+
+      {currentAccount && (
+        <VerificationModal
+          visible={showVerificationModal}
+          onClose={() => setShowVerificationModal(false)}
+          account={currentAccount}
+          onAccountUpdate={updated => setCurrentAccount(updated)}
           theme={theme}
         />
       )}

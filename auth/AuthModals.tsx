@@ -500,3 +500,332 @@ export function ProfileScreen({
     </Modal>
   );
 }
+
+// ─── VERIFICATION MODAL ──────────────────────────────────────────────────────
+
+interface VerificationModalProps {
+  visible: boolean;
+  onClose: () => void;
+  account: Account;
+  onAccountUpdate: (account: Account) => void;
+  theme: Theme;
+}
+
+export function VerificationModal({
+  visible, onClose, account, onAccountUpdate, theme,
+}: VerificationModalProps) {
+  // Step: 1=choose type, 2=ID photo, 3=selfie, 4=pending/result
+  // If discountType is already set, start at step 2
+  const initialStep = (): 1 | 2 | 3 | 4 => (account.discountType !== 'none' ? 2 : 1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialStep());
+  const [localType, setLocalType] = useState<'student' | 'retired'>(
+    account.discountType !== 'none' ? account.discountType as 'student' | 'retired' : 'student'
+  );
+  const [idPhotoUri, setIdPhotoUri] = useState<string | null>(
+    account.verification.status === 'rejected' ? null : account.verification.idPhotoUri
+  );
+  const [selfieUri, setSelfieUri] = useState<string | null>(
+    account.verification.status === 'rejected' ? null : account.verification.selfieUri
+  );
+  const [approved, setApproved] = useState(false);
+
+  const resetState = (acc: Account) => {
+    setStep(acc.discountType !== 'none' ? 2 : 1);
+    setLocalType(acc.discountType !== 'none' ? acc.discountType as 'student' | 'retired' : 'student');
+    setIdPhotoUri(acc.verification.status === 'rejected' ? null : acc.verification.idPhotoUri);
+    setSelfieUri(acc.verification.status === 'rejected' ? null : acc.verification.selfieUri);
+    setApproved(false);
+  };
+
+  const pickPhoto = async (type: 'id' | 'selfie') => {
+    try {
+      if (type === 'selfie') {
+        const result = await ImagePicker.launchCameraAsync({
+          allowsEditing: true, aspect: [3, 4], quality: 0.7,
+          cameraType: ImagePicker.CameraType.front,
+        });
+        if (!result.canceled) setSelfieUri(result.assets[0].uri);
+        return;
+      }
+      Alert.alert('Upload ID Photo', 'Choose source', [
+        {
+          text: '📷 Camera', onPress: async () => {
+            try {
+              const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
+              if (!r.canceled) setIdPhotoUri(r.assets[0].uri);
+            } catch { /* dismissed */ }
+          },
+        },
+        {
+          text: '🖼 Gallery', onPress: async () => {
+            try {
+              const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.8 });
+              if (!r.canceled) setIdPhotoUri(r.assets[0].uri);
+            } catch { /* dismissed */ }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    } catch { /* dismissed */ }
+  };
+
+  const submitVerification = async () => {
+    const effectiveType = account.discountType !== 'none'
+      ? account.discountType as 'student' | 'retired'
+      : localType;
+    try {
+      const updated: Account = {
+        ...account,
+        discountType: effectiveType,
+        verification: {
+          status: 'pending',
+          idPhotoUri: idPhotoUri!,
+          selfieUri: selfieUri!,
+          submittedAt: Date.now(),
+        },
+      };
+      const saved = await updateAccount(updated);
+      onAccountUpdate(saved);
+      setStep(4);
+
+      // Simulate 3-second auto-approve
+      setTimeout(async () => {
+        try {
+          const approvedAccount: Account = {
+            ...saved,
+            verification: { ...saved.verification, status: 'approved' },
+          };
+          const finalSaved = await updateAccount(approvedAccount);
+          onAccountUpdate(finalSaved);
+          setApproved(true);
+        } catch {
+          Alert.alert('Error', 'Verification update failed. Please try again.');
+        }
+      }, 3000);
+    } catch {
+      Alert.alert('Error', 'Could not submit verification. Please try again.');
+    }
+  };
+
+  const typeLabel = localType === 'student' ? 'student card' : 'senior ID';
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      onShow={() => resetState(account)}
+    >
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+        <View style={{
+          backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+          padding: 24, paddingBottom: 48,
+          borderWidth: 1, borderColor: theme.border,
+        }}>
+          <View style={{
+            width: 40, height: 4, borderRadius: 2, backgroundColor: theme.border,
+            alignSelf: 'center', marginBottom: 24,
+          }} />
+
+          {/* Step 1 — Choose type */}
+          {step === 1 && (
+            <View style={{ gap: 16 }}>
+              <Text style={{ color: theme.text, fontSize: 20, fontWeight: '700', textAlign: 'center' }}>
+                Who qualifies for a discount?
+              </Text>
+              {(['student', 'retired'] as const).map(type => (
+                <Pressable
+                  key={type}
+                  onPress={() => { setLocalType(type); setStep(2); }}
+                  style={({ pressed }) => ({
+                    padding: 18, borderRadius: 14,
+                    borderWidth: 1.5, borderColor: theme.border,
+                    backgroundColor: theme.surfaceAlt,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 28, marginBottom: 6, textAlign: 'center' }}>
+                    {type === 'student' ? '🎓' : '👴'}
+                  </Text>
+                  <Text style={{ color: theme.text, fontSize: 17, fontWeight: '700', textAlign: 'center' }}>
+                    {type === 'student' ? 'Student' : 'Senior / Retired'}
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 13, textAlign: 'center', marginTop: 4 }}>
+                    {type === 'student'
+                      ? 'Upload your student card to unlock the student discount'
+                      : 'Upload your senior ID to unlock the retirement discount'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Step 2 — ID photo */}
+          {step === 2 && (
+            <View style={{ gap: 16 }}>
+              <Text style={{ color: theme.text, fontSize: 20, fontWeight: '700', textAlign: 'center' }}>
+                Upload your {typeLabel}
+              </Text>
+              {account.verification.status === 'rejected' && (
+                <View style={{ backgroundColor: '#e0505018', borderRadius: 8, padding: 10 }}>
+                  <Text style={{ color: '#e05050', fontSize: 13 }}>
+                    Your previous submission was rejected. Please re-upload a clear photo of your ID.
+                  </Text>
+                </View>
+              )}
+              <Text style={{ color: theme.muted, fontSize: 14, textAlign: 'center' }}>
+                Take a clear photo of your {typeLabel} showing your name and photo.
+              </Text>
+              {idPhotoUri ? (
+                <View style={{ alignItems: 'center', gap: 10 }}>
+                  <Image source={{ uri: idPhotoUri }}
+                    style={{ width: 200, height: 130, borderRadius: 10 }} />
+                  <Pressable
+                    onPress={() => pickPhoto('id')}
+                    style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8,
+                      borderWidth: 1, borderColor: theme.border }}
+                  >
+                    <Text style={{ color: theme.muted, fontSize: 13 }}>Retake photo</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => pickPhoto('id')}
+                  style={({ pressed }) => ({
+                    padding: 20, borderRadius: 12,
+                    borderWidth: 1.5, borderColor: theme.accent, borderStyle: 'dashed',
+                    alignItems: 'center', opacity: pressed ? 0.8 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 32, marginBottom: 8 }}>🪪</Text>
+                  <Text style={{ color: theme.accent, fontWeight: '600' }}>
+                    📷 Camera  ·  🖼 Gallery
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
+                    Tap to choose
+                  </Text>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => setStep(3)}
+                disabled={!idPhotoUri}
+                style={({ pressed }) => ({
+                  paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: theme.accent, opacity: !idPhotoUri ? 0.4 : pressed ? 0.85 : 1,
+                })}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Next →</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Step 3 — Selfie */}
+          {step === 3 && (
+            <View style={{ gap: 16 }}>
+              <Text style={{ color: theme.text, fontSize: 20, fontWeight: '700', textAlign: 'center' }}>
+                Now take a selfie
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 14, textAlign: 'center' }}>
+                We'll match your face to the ID photo to confirm your identity.
+              </Text>
+              {selfieUri ? (
+                <View style={{ alignItems: 'center', gap: 10 }}>
+                  <Image source={{ uri: selfieUri }}
+                    style={{ width: 160, height: 160, borderRadius: 80 }} />
+                  <Pressable
+                    onPress={() => pickPhoto('selfie')}
+                    style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8,
+                      borderWidth: 1, borderColor: theme.border }}
+                  >
+                    <Text style={{ color: theme.muted, fontSize: 13 }}>Retake selfie</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => pickPhoto('selfie')}
+                  style={({ pressed }) => ({
+                    padding: 20, borderRadius: 12,
+                    borderWidth: 1.5, borderColor: theme.accent, borderStyle: 'dashed',
+                    alignItems: 'center', opacity: pressed ? 0.8 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 32, marginBottom: 8 }}>🤳</Text>
+                  <Text style={{ color: theme.accent, fontWeight: '600', fontSize: 15 }}>
+                    Take Selfie
+                  </Text>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={submitVerification}
+                disabled={!selfieUri}
+                style={({ pressed }) => ({
+                  paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: theme.accent, opacity: !selfieUri ? 0.4 : pressed ? 0.85 : 1,
+                })}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
+                  Submit for Verification →
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Step 4 — Pending / Result */}
+          {step === 4 && (
+            <View style={{ gap: 16, alignItems: 'center' }}>
+              {approved ? (
+                <>
+                  <Text style={{ fontSize: 48 }}>✅</Text>
+                  <Text style={{ color: theme.green, fontSize: 20, fontWeight: '700', textAlign: 'center' }}>
+                    Verified — discount activated!
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 14, textAlign: 'center' }}>
+                    Your{' '}
+                    {account.discountType === 'student' ? 'student' : 'senior'} discount is now
+                    applied automatically when booking.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 48 }}>⏳</Text>
+                  <Text style={{ color: theme.text, fontSize: 20, fontWeight: '700', textAlign: 'center' }}>
+                    Verifying your identity...
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 14, textAlign: 'center' }}>
+                    This usually takes a few seconds.
+                  </Text>
+                </>
+              )}
+              {idPhotoUri && selfieUri && (
+                <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+                  <View style={{ alignItems: 'center', gap: 4 }}>
+                    <Image source={{ uri: idPhotoUri }}
+                      style={{ width: 100, height: 70, borderRadius: 8 }} />
+                    <Text style={{ color: theme.muted, fontSize: 12 }}>ID Photo</Text>
+                  </View>
+                  <View style={{ alignItems: 'center', gap: 4 }}>
+                    <Image source={{ uri: selfieUri }}
+                      style={{ width: 70, height: 70, borderRadius: 35 }} />
+                    <Text style={{ color: theme.muted, fontSize: 12 }}>Selfie</Text>
+                  </View>
+                </View>
+              )}
+              {approved && (
+                <Pressable
+                  onPress={onClose}
+                  style={({ pressed }) => ({
+                    paddingVertical: 12, paddingHorizontal: 32, borderRadius: 10,
+                    backgroundColor: theme.green, opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Done</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
