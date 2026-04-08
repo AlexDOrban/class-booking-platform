@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, Image, Alert, ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Account, signIn, signUp, updateAccount } from './AuthStore';
 
 type Theme = {
@@ -537,6 +538,9 @@ export function VerificationModal({
     account.verification.status === 'rejected' ? null : account.verification.selfieUri
   );
   const [approved, setApproved] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const cameraRef = useRef<CameraView>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -553,16 +557,37 @@ export function VerificationModal({
     setIdPhotoUri(acc.verification.status === 'rejected' ? null : acc.verification.idPhotoUri);
     setSelfieUri(acc.verification.status === 'rejected' ? null : acc.verification.selfieUri);
     setApproved(false);
+    setShowCamera(false);
+  };
+
+  const openSelfieCamera = async () => {
+    if (!cameraPermission?.granted) {
+      const perm = await requestCameraPermission();
+      if (!perm.granted) {
+        Alert.alert('Camera Permission', 'Camera access is required to take a selfie.');
+        return;
+      }
+    }
+    setShowCamera(true);
+  };
+
+  const takeSelfie = async () => {
+    if (!cameraRef.current) return;
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      if (photo) {
+        setSelfieUri(photo.uri);
+        setShowCamera(false);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not take photo. Please try again.');
+    }
   };
 
   const pickPhoto = async (type: 'id' | 'selfie') => {
     try {
       if (type === 'selfie') {
-        const result = await ImagePicker.launchCameraAsync({
-          quality: 0.7,
-          cameraType: ImagePicker.CameraType.front,
-        });
-        if (!result.canceled) setSelfieUri(result.assets[0].uri);
+        await openSelfieCamera();
         return;
       }
       Alert.alert('Upload ID Photo', 'Choose source', [
@@ -630,6 +655,7 @@ export function VerificationModal({
   const typeLabel = localType === 'student' ? 'student card' : 'senior ID';
 
   return (
+    <>
     <Modal
       visible={visible}
       animationType="slide"
@@ -852,5 +878,24 @@ export function VerificationModal({
         </Pressable>
       </Pressable>
     </Modal>
+
+    {/* Full-screen selfie camera */}
+    <Modal visible={showCamera} animationType="slide" onRequestClose={() => setShowCamera(false)}>
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" mirror={true} />
+        <View style={{ position: 'absolute', bottom: 50, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40 }}>
+          <Pressable onPress={() => setShowCamera(false)} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>✕</Text>
+          </Pressable>
+          <Pressable onPress={takeSelfie} style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#fff', borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff' }} />
+          </Pressable>
+        </View>
+        <View style={{ position: 'absolute', top: 60, left: 0, right: 0, alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Take a selfie</Text>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
