@@ -637,16 +637,20 @@ export function VerificationModal({
       onRequestClose={onClose}
       onShow={() => resetState(accountRef.current)}
     >
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-        <View style={{
-          backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-          padding: 24, paddingBottom: 48,
-          borderWidth: 1, borderColor: theme.border,
-        }}>
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}
+        onPress={onClose}
+      >
+        <Pressable onPress={() => {}} style={{ backgroundColor: 'transparent' }}>
           <View style={{
-            width: 40, height: 4, borderRadius: 2, backgroundColor: theme.border,
-            alignSelf: 'center', marginBottom: 24,
-          }} />
+            backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+            padding: 24, paddingBottom: 48,
+            borderWidth: 1, borderColor: theme.border,
+          }}>
+            <View style={{
+              width: 40, height: 4, borderRadius: 2, backgroundColor: theme.border,
+              alignSelf: 'center', marginBottom: 24,
+            }} />
 
           {/* Step 1 — Choose type */}
           {step === 1 && (
@@ -844,8 +848,9 @@ export function VerificationModal({
               )}
             </View>
           )}
-        </View>
-      </View>
+          </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
