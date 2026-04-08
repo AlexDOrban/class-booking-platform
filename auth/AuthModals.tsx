@@ -655,7 +655,6 @@ export function VerificationModal({
   const typeLabel = localType === 'student' ? 'student card' : 'senior ID';
 
   return (
-    <>
     <Modal
       visible={visible}
       animationType="slide"
@@ -663,6 +662,22 @@ export function VerificationModal({
       onRequestClose={onClose}
       onShow={() => resetState(accountRef.current)}
     >
+      {showCamera ? (
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" mirror={true} />
+          <View style={{ position: 'absolute', bottom: 50, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40 }}>
+            <Pressable onPress={() => setShowCamera(false)} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>✕</Text>
+            </Pressable>
+            <Pressable onPress={takeSelfie} style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#fff', borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff' }} />
+            </Pressable>
+          </View>
+          <View style={{ position: 'absolute', top: 60, left: 0, right: 0, alignItems: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Take a selfie</Text>
+          </View>
+        </View>
+      ) : (
       <Pressable
         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}
         onPress={onClose}
@@ -877,25 +892,7 @@ export function VerificationModal({
           </View>
         </Pressable>
       </Pressable>
+      )}
     </Modal>
-
-    {/* Full-screen selfie camera */}
-    <Modal visible={showCamera} animationType="slide" onRequestClose={() => setShowCamera(false)}>
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
-        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" mirror={true} />
-        <View style={{ position: 'absolute', bottom: 50, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40 }}>
-          <Pressable onPress={() => setShowCamera(false)} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>✕</Text>
-          </Pressable>
-          <Pressable onPress={takeSelfie} style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#fff', borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff' }} />
-          </Pressable>
-        </View>
-        <View style={{ position: 'absolute', top: 60, left: 0, right: 0, alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Take a selfie</Text>
-        </View>
-      </View>
-    </Modal>
-    </>
   );
 }
