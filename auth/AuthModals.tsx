@@ -119,17 +119,25 @@ export function SignInSignUpModal({ visible, onClose, onSignIn, theme }: SignInS
       transparent
       onRequestClose={handleClose}
     >
-      <Pressable
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
-        onPress={handleClose}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <Pressable onPress={() => {}} style={{ backgroundColor: 'transparent' }}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={{
-              backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-              padding: 24, paddingBottom: 40,
-              borderWidth: 1, borderColor: theme.border,
-            }}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+          onPress={handleClose}
+        >
+          <Pressable onPress={() => {}} style={{ backgroundColor: 'transparent' }}>
+            <ScrollView
+              bounces={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{
+                backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+                padding: 24, paddingBottom: 40,
+                borderWidth: 1, borderColor: theme.border,
+              }}
+            >
               {/* Handle bar */}
               <View style={{
                 width: 40, height: 4, borderRadius: 2, backgroundColor: theme.border,
@@ -249,10 +257,10 @@ export function SignInSignUpModal({ visible, onClose, onSignIn, theme }: SignInS
                   </Pressable>
                 </View>
               )}
-            </View>
-          </KeyboardAvoidingView>
+            </ScrollView>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
