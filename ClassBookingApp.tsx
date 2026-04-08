@@ -880,6 +880,11 @@ export default function ClassBookingApp() {
                                   </Text>
                                 </View>
                               )}
+                              {currentAccount && currentAccount.verification.status === 'pending' && currentAccount.discountType !== 'none' && (
+                                <Text style={{ fontSize: 11, color: theme.amber, marginTop: 2, fontFamily: 'DMSans_400Regular' }}>
+                                  ⏳ pending
+                                </Text>
+                              )}
                               {currentAccount && currentAccount.verification.status === 'approved' && currentAccount.discountType !== 'none' && (
                                 <Text style={{
                                   fontSize: 11, color: theme.muted,
@@ -2672,7 +2677,7 @@ export default function ClassBookingApp() {
           onClose={() => setShowProfileModal(false)}
           account={currentAccount}
           onAccountUpdate={updated => setCurrentAccount(updated)}
-          onSignOut={async () => { await signOut(); setCurrentAccount(null); setShowProfileModal(false); }}
+          onSignOut={async () => { await signOut(); setCurrentAccount(null); setShowProfileModal(false); setShowVerificationModal(false); }}
           onOpenVerification={account => {
             setCurrentAccount(account);
             setShowProfileModal(false);

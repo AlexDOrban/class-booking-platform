@@ -484,7 +484,7 @@ export function ProfileScreen({
 
               {/* ── Sign out ── */}
               <Pressable
-                onPress={async () => { onClose(); await onSignOut(); }}
+                onPress={async () => { await onSignOut(); onClose(); }}
                 style={({ pressed }) => ({
                   paddingVertical: 12, borderRadius: 10, alignItems: 'center',
                   borderWidth: 1, borderColor: '#e05050',
