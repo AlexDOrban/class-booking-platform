@@ -559,7 +559,7 @@ export function VerificationModal({
     try {
       if (type === 'selfie') {
         const result = await ImagePicker.launchCameraAsync({
-          allowsEditing: true, aspect: [3, 4], quality: 0.7,
+          quality: 0.7,
           cameraType: ImagePicker.CameraType.front,
         });
         if (!result.canceled) setSelfieUri(result.assets[0].uri);
